@@ -1,0 +1,35 @@
+name: 'CyberArk Conjur Secret Fetcher'
+description: 'Securely retrieve a secret from CyberArk Conjur and present to your action as a masked environment variable'
+author: 'Joe Garcia, CISSP'
+inputs: 
+  url:
+    description: 'The URL for CyberArk Conjur endpoint'
+    required: true
+  account:
+    description: 'The account name of your CyberArk Conjur instance'
+    required: true
+  host_id:
+    description: 'The Host ID to be used for authentication to CyberArk Conjur e.g. host/github-action'
+    required: true
+  api_key:
+    description: 'The API Key associated with the given Host ID'
+    required: true
+  secrets:
+    description: 'A semi-colon delimited list of secrets to retrieve. See README for more details.'
+    required: true
+  certificate:
+    description: 'The Self-Signed SSL Certificate for your CyberArk Conjur instance'
+    required: false
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.url }}
+    - ${{ inputs.account }}
+    - ${{ inputs.host_id }}
+    - ${{ inputs.api_key }}
+    - ${{ inputs.secrets }}
+    - ${{ inputs.certificate }}
+branding:
+  icon: 'lock'
+  color: 'blue'

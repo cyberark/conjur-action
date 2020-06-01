@@ -1,31 +1,12 @@
-# Contributing
+# Contributing 
 
-[Are you accepting contributions at this time? If not, please state that here.
-No need to include content from the rest of this document.]
-
-For general contribution and community guidelines, please see the [community repo](https://github.com/cyberark/community).
+I am currently accepting contributions.
 
 ## Table of Contents
 
-- [Development](#development)
-- [Testing](#testing)
-- [Releases](#releases)
-- [Contributing](#contributing-workflow)
-
-## Development
-
-TODO:
-[What development tools are required to start working on this project?]
-
-## Testing
-
-TODO:
-[Instructions for running the test suite]
-
-## Releases
-
-TODO:
-[Instructions for creating a new release]
+- [Contributing](#contributing)
+  - [Table of Contents](#table-of-contents)
+  - [Contributing workflow](#contributing-workflow)
 
 ## Contributing workflow
 
