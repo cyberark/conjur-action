@@ -2,7 +2,10 @@
 
 GitHub Action for secure secrets delivery to your workflow test environment using CyberArk Conjur.
 
-![](https://img.shields.io/badge/Certification%20Level-Trusted-007BFF?link=https://github.com/cyberark/community/blob/master/Conjur/conventions/certification-levels.md) [![](https://github.com/infamousjoeg/conjur-action/workflows/conjur-action%20Test/badge.svg)](https://github.com/infamousjoeg/conjur-action/actions?workflow=conjur-action+Test)
+![](https://img.shields.io/badge/Certification%20Level-Community-28A745?link=https://github.com/cyberark/community/blob/master/Conjur/conventions/certification-levels.md) [![](https://github.com/cyberark/conjur-action/workflows/conjur-action%20Test/badge.svg)](https://github.com/cyberark/conjur-action/actions?workflow=conjur-action+Test)
+
+This repo is a **Community** level project. It's a community contributed project that **is not reviewed or supported
+by CyberArk**. For more detailed information on our certification levels, see [our community guidelines](https://github.com/cyberark/community/blob/master/Conjur/conventions/certification-levels.md#community).
 
 ## Requirements
 
