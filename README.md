@@ -6,8 +6,55 @@ Supports authenticating with CyberArk Conjur using host identity and JWT authent
 
 [![](https://github.com/infamousjoeg/conjur-action/workflows/conjur-action%20Test/badge.svg)](https://github.com/infamousjoeg/conjur-action/actions?workflow=conjur-action+Test)
 
+## Requirements
 
+* Docker and access to DockerHub.
+* Github
+* Github self hosted Runner
+* Conjur Secrets Manager Enterprise v10+
+* Conjur Secrets Manager Open Source v1.1+
 
+## Setup
+
+### Prerequisite for running github runner on VM.
+1. Install docker (Docker must be install as not root user) --- for Linux OS
+ * Modify Sudoers File (vi /etc/sudoers)
+   ```yaml 
+   runner ALL=(ALL) ALL
+   ```
+ * Run command to create group and add user.
+   ```yaml
+   sudo adduser newuser
+   sudo groupadd newgroup_name
+   sudo usermod -aG docker ${USER}
+   su - ${USER}
+   id -nG
+   ```
+ * Step to install docker 
+   ```yaml
+   sudo apt update
+   sudo apt install apt-transport-https ca-certificates curl software-properties-common
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add –
+   sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+   sudo apt update
+   apt-cache policy docker-ce
+   sudo apt install docker-ce
+   sudo systemctl status docker
+   ```
+2. Configration of Github action runner in your system.
+
+ * Project Github repo and follow the steps below.
+   <img src="https://github.com/cyberark/conjur-action/blob/main/images/runner_setup_image.png" width="300" height="300">
+
+ * To create self-hosted runner there are 3 images. Select the image as per your requirement and follow step to download and configure the runner.
+  <img src="https://github.com/cyberark/conjur-action/blob/main/images/runner_configuration_image.png" width="300" height="300">
+
+3. Conjur Setup
+
+ * Need conujr server up and running state.
+ * Need to Enable the authenticators for JWT authentication.
+   <img src="https://github.com/cyberark/conjur-action/blob/main/images/authentication_enable.png" width="300" height="300">
+   
 ## Host Identity
 
 ### Example
