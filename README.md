@@ -185,12 +185,6 @@ It is recommended to set the URL, Host ID, and API Key values for the Action to 
 
 The CyberArk Conjur Secret Fetcher GitHub Action utilizes masking prior to setting secret values to the environment.  This prevents output to the console and to logs.
 
-## Maintainer
-
-Joe Garcia - [@infamousjoeg](https://github.com/infamousjoeg)
-
-Quincy Cheng - [@quincycheng](https://github.com/quincycheng)
-
 [![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
 
 [buymeacoffee]: https://www.buymeacoffee.com/infamousjoeg
