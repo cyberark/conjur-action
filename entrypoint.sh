@@ -71,6 +71,7 @@ array_secrets() {
 }
 
 set_secrets() {
+  if [[ ${SECRETS[@]} ]]; then
     for secret in "${SECRETS[@]}"; do
         IFS='|'
         read -ra METADATA <<< "$secret" # [0]=db/sqlusername [1]=sql_username
@@ -106,6 +107,9 @@ set_secrets() {
         echo ::add-mask::"${secretVal}" # Masks the value in all logs & output
         echo "${envVar}=${secretVal}" >> "${GITHUB_ENV}" # Set environment variable
     done
+  else 
+   echo "::error::No secret found for retrieval from Conjur Vault"
+  fi
 }
 
 main "$@"
