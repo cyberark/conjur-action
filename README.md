@@ -6,8 +6,55 @@ Supports authenticating with CyberArk Conjur using host identity and JWT authent
 
 [![](https://github.com/infamousjoeg/conjur-action/workflows/conjur-action%20Test/badge.svg)](https://github.com/infamousjoeg/conjur-action/actions?workflow=conjur-action+Test)
 
+## Requirements
 
+* Docker and access to DockerHub.
+* Github
+* Github self hosted Runner
+* Conjur Secrets Manager Enterprise v10+
+* Conjur Secrets Manager Open Source v1.1+
 
+## Setup
+
+### Prerequisite for running github runner on VM.
+1. Install docker (Docker must be install as not root user) --- for Linux OS
+ * Modify Sudoers File (vi /etc/sudoers)
+   ```yaml 
+   runner ALL=(ALL) ALL
+   ```
+ * Run command to create group and add user.
+   ```yaml
+   sudo adduser newuser
+   sudo groupadd newgroup_name
+   sudo usermod -aG docker ${USER}
+   su - ${USER}
+   id -nG
+   ```
+ * Step to install docker 
+   ```yaml
+   sudo apt update
+   sudo apt install apt-transport-https ca-certificates curl software-properties-common
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add –
+   sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+   sudo apt update
+   apt-cache policy docker-ce
+   sudo apt install docker-ce
+   sudo systemctl status docker
+   ```
+2. Configration of Github action runner in your system.
+
+ * Project Github repo and follow the steps below.
+      <img src="https://github.com/cyberark/conjur-action/blob/master/images/runner_setup_image.png" width="800" height="500">
+
+ * To create self-hosted runner there are 3 images. Select the image as per your requirement and follow step to download and configure the runner.
+      <img src="https://github.com/cyberark/conjur-action/blob/master/images/runner_configuration_image.png" width="900" height="700">
+
+3. Conjur Setup
+
+ * Need conujr server up and running state.
+ * Need to Enable the authenticators for JWT authentication.
+      <img src="https://github.com/cyberark/conjur-action/blob/master/images/authentication_enable.png" width="600" height="400">
+   
 ## Host Identity
 
 ### Example
@@ -21,7 +68,7 @@ jobs:
     steps:
       # ...
       - name: Import Secrets using CyberArk Conjur Secret Fetcher
-        uses: infamousjoeg/conjur-action@v2.0.2
+        uses: cyberark/conjur-action@v2.0.2
         with:
           url: ${{ secrets.CONJUR_URL }}
           account: cyberarkdemo
@@ -67,7 +114,7 @@ jobs:
     steps:
       # ...
       - name: Import Secrets using CyberArk Conjur Secret Fetcher
-        uses: infamousjoeg/conjur-action@v2.0.2
+        uses: cyberark/conjur-action@v2.0.2
         with:
           url: ${{ secrets.CONJUR_URL }}
           account: cyberarkdemo
@@ -137,17 +184,6 @@ It is recommended to set the URL, Host ID, and API Key values for the Action to 
 ### Masking
 
 The CyberArk Conjur Secret Fetcher GitHub Action utilizes masking prior to setting secret values to the environment.  This prevents output to the console and to logs.
-
-## Maintainer
-
-Joe Garcia - [@infamousjoeg](https://github.com/infamousjoeg)
-
-Quincy Cheng - [@quincycheng](https://github.com/quincycheng)
-
-[![Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
-
-[buymeacoffee]: https://www.buymeacoffee.com/infamousjoeg
-[buymeacoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
 
 ## License
 
