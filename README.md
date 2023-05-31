@@ -113,7 +113,7 @@ jobs:
       contents: 'read'
     steps:
       # ...
-      - name: Import Secrets using CyberArk Conjur Secret Fetcher
+      - name: Import Secrets using CyberArk Conjur Secret Fetcher Action
         uses: cyberark/conjur-action@v2.0.2
         with:
           url: ${{ secrets.CONJUR_URL }}
