@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
-      - name: Use CyberArk Conjur Secret Fetcher w/ GitHub Secrets
+      - name: Use CyberArk Conjur Secret Fetcher Action w/ GitHub Secrets
         uses: ./
         with:
           url: ${{ secrets.CONJUR_URL }}
