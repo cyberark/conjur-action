@@ -6,6 +6,12 @@ Supports authenticating with CyberArk Conjur using host identity and JWT authent
 
 [![](https://github.com/infamousjoeg/conjur-action/workflows/conjur-action%20Test/badge.svg)](https://github.com/infamousjoeg/conjur-action/actions?workflow=conjur-action+Test)
 
+## Certification level
+[![](https://img.shields.io/badge/Certification%20Level-Certified-28A745?)](https://github.com/cyberark/community/blob/master/Conjur/conventions/certification-levels.md)
+
+This repository is a **Certified** level project. It's a community contributed project **reviewed and tested by CyberArk
+and trusted to use with Conjur Open Source**. For more detailed information on our certification levels, see [our community guidelines](https://github.com/cyberark/community/blob/master/Conjur/conventions/certification-levels.md#certified).
+
 ## Requirements
 
 * Docker and access to DockerHub.
