@@ -74,7 +74,7 @@ jobs:
     steps:
       # ...
       - name: Import Secrets using CyberArk Conjur Secret Fetcher Action
-        uses: cyberark/conjur-action@v2.0.2
+        uses: cyberark/conjur-action@v2.0.5
         with:
           url: ${{ secrets.CONJUR_URL }}
           account: cyberarkdemo
@@ -120,7 +120,7 @@ jobs:
     steps:
       # ...
       - name: Import Secrets using CyberArk Conjur Secret Fetcher Action
-        uses: cyberark/conjur-action@v2.0.2
+        uses: cyberark/conjur-action@v2.0.5
         with:
           url: ${{ secrets.CONJUR_URL }}
           account: cyberarkdemo
