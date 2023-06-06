@@ -62,7 +62,7 @@ and trusted to use with Conjur Open Source**. For more detailed information on o
       <img src="https://github.com/cyberark/conjur-action/blob/master/images/authentication_enable.png" width="600" height="400">
    
 ## Host Identity
-* API Key Based Authentication configuration for .github/workflows .yml file
+### API Key Based Authentication configuration for .github/workflows .yml file
 
 ### Example
 
@@ -102,7 +102,7 @@ jobs:
 #### Not required
 * `authn_id` - this is the ID of Authn-JWT at Conjur
 
-* JWT Authentication configuration for .github/workflows .yml file
+### JWT Authentication configuration for .github/workflows .yml file
 
 ### Example
 
