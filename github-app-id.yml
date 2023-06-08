@@ -7,7 +7,7 @@
         - !host
           id: release
           annotations:
-              authn-jwt/github/repository: infamousjoeg/conjur-action
+              authn-jwt/github/repository: cyberark/conjur-action
               authn-jwt/github/workflow: release
 
       - !grant
