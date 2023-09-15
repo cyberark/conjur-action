@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
 pipeline {
-  agent { label 'executor-v2' }
+  agent { label 'conjur-enterprise-common-agent' }
 
   options {
     timestamps()
@@ -17,11 +17,22 @@ pipeline {
     //   }
     // }
 
+    stage('Get InfraPool ExecutorV2 Agent') {
+      steps {
+        script {
+          // Request ExecutorV2 agents for 1 hour(s)
+          INFRAPOOL_EXECUTORV2_AGENT_0 = getInfraPoolAgent.connected(type: "ExecutorV2", quantity: 1, duration: 1)[0]
+        }
+      }
+    }
+
     stage('Build Release Artifacts') {
 
       steps {
-        sh './bin/build_release'
-        archiveArtifacts '/output/conjur-action-*.tar.gz'
+        script {
+          INFRAPOOL_EXECUTORV2_AGENT_0.agentSh './bin/build_release'
+          INFRAPOOL_EXECUTORV2_AGENT_0.agentArchiveArtifacts artifacts: 'conjur-action-*.tar.gz'
+        }
       }
     }
 
@@ -30,7 +41,9 @@ pipeline {
 
   post {
     always {
-      cleanupAndNotify(currentBuild.currentResult)
+      script {
+        releaseInfraPoolAgent(".infrapool/release_agents")
+      }
     }
   }
 }
