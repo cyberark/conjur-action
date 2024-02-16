@@ -6,14 +6,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [2.0.6] - 2024-02-16
+
+### Security
+- Updated Alpine base image
+
 ## [2.0.5] - 2023-04-20
 
 ### Added
-### Changed
-### Deprecated
-### Removed
-### Fixed
-### Security
+- Initial release
 
-[2.0.5]: https://github.com/cyberark/conjur/compare/v2.0.4...HEAD
-
+[Unreleased]: https://github.com/cyberark/conjur-action/compare/v2.0.6...HEAD
+[2.0.6]: https://github.com/cyberark/conjur-action/compare/v2.0.5...v2.0.6
+[2.0.5]: https://github.com/cyberark/conjur-action/releases/tag/v2.0.5
