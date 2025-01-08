@@ -40,6 +40,21 @@ pipeline {
   }
 
   stages {
+    // Aborts any builds triggered by another project that wouldn't include any changes
+    stage ("Skip build if triggering job didn't create a release") {
+      when {
+        expression {
+          MODE == "SKIP"
+        }
+      }
+      steps {
+        script {
+          currentBuild.result = 'ABORTED'
+          error("Aborting build because this build was triggered from upstream, but no release was built")
+        }
+      }
+    }
+    
     stage('Get InfraPool ExecutorV2 Agent') {
       steps {
         script {
