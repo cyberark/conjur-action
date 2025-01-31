@@ -1,0 +1,3 @@
+[submodule "bin/conjur-intro"]
+	path = bin/conjur-intro
+	url = https://github.com/conjurdemos/conjur-intro.git

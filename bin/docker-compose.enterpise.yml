@@ -1,0 +1,27 @@
+services:
+  act:
+    build:
+      context: .
+      dockerfile: Dockerfile.act
+    container_name: act_container
+    command: sleep infinity
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../:/conjur-action
+    environment:
+      CONJUR_ACCOUNT: ${CONJUR_ACCOUNT}
+      CONJUR_APPLIANCE_URL: ${CONJUR_APPLIANCE_URL}
+      CONJUR_AUTHN_API_KEY: ${ADMIN_API_KEY}
+      CONJUR_AUTHN_LOGIN: ${CONJUR_AUTHN_LOGIN}
+      CONJUR_AUTHN_TOKEN_FILE: ${CONJUR_AUTHN_TOKEN_FILE}
+      CONJUR_SSL_CERTIFICATE: ${CONJUR_SSL_CERTIFICATE}
+      CONJUR_SECRET: ${CONJUR_SECRET}
+      DOCKER_HOST: unix:///var/run/docker.sock
+    networks:
+      - dap_net
+
+networks:
+  dap_net:
+    name: dap_net
+    external: true

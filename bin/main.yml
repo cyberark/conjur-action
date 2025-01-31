@@ -1,0 +1,38 @@
+name: conjur-action Test
+
+on:
+  push:
+    branches:
+      - master
+      - automation-test
+  pull_request:
+
+jobs:
+  test-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Use CyberArk Conjur Secret Fetcher Action w/ GitHub Secrets
+        uses: ./
+        with:
+          url: ${{ secrets.URL }}
+          account: ${{ secrets.ACCOUNT }}
+          host_id: ${{ secrets.HOST_ID }}
+          api_key: ${{ secrets.API_KEY }}
+          authn_token_file: ${{ secrets.AUTHN_TOKEN_FILE }}
+          secrets: ${{ secrets.SECRET }}|dev_password
+          certificate: ${{ secrets.CERTIFICATE }}
+
+      - name: Validate The Retrieved Secret
+        run: |
+          if [ "$DEV_PASSWORD" == "test_dev_1" ]; then
+            echo "DEV_PASSWORD is correct."
+          else
+            echo "Error: DEV_PASSWORD is incorrect or not set properly."
+            exit 1
+          fi
+
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@v1.1.0
