@@ -3,10 +3,23 @@
 
 main() {
     create_pem
-    conjur_authn
+    if [[ -z "$INPUT_AUTHN_TOKEN_FILE" ]]; then
+        conjur_authn
+    else
+        token=$(get_token_from_file)
+    fi
     # Secrets Example: db/sqlusername | sql_username; db/sql_password
     array_secrets
     set_secrets
+}
+
+get_token_from_file() {
+    if [[ ! -f "$INPUT_AUTHN_TOKEN_FILE" ]]; then
+        echo "::error:: Conjur authn token file ${INPUT_AUTHN_TOKEN_FILE} not found on the host."
+        return 1
+    fi
+    authn_token=$(cat "$INPUT_AUTHN_TOKEN_FILE")
+    echo "$authn_token"
 }
 
 urlencode() {
@@ -32,8 +45,13 @@ create_pem() {
     echo "$INPUT_CERTIFICATE" > conjur_"$INPUT_ACCOUNT".pem
 }
 
-conjur_authn() {
+telemetry_header(){
+    telemetry_val = "in=Github Actions&it=cybr-secretsmanager&iv=$(cat VERSION)&vv=Github"
+    encoded=$(echo -n "$telemetry_val" | base64 | tr '+/' '-_' | tr -d '=')
+}
 
+conjur_authn() {
+    telemetry_header
 	if [[ -n "$INPUT_AUTHN_ID" ]]; then
 
 		echo "::debug Authenticate via Authn-JWT"
@@ -41,10 +59,10 @@ conjur_authn() {
         
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Authenticating with certificate"
-			token=$(curl --cacert "conjur_$INPUT_ACCOUNT.pem" --request POST "$INPUT_URL/authn-jwt/$INPUT_AUTHN_ID/$INPUT_ACCOUNT/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
+			token=$(curl --cacert "conjur_$INPUT_ACCOUNT.pem" --request POST "$INPUT_URL/authn-jwt/$INPUT_AUTHN_ID/$INPUT_ACCOUNT/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
 		else
             echo "::debug Authenticating without certificate"
-			token=$(curl --request POST "$INPUT_URL/authn-jwt/$INPUT_AUTHN_ID/$INPUT_ACCOUNT/authenticate" --header 'Content-Type: application/x-www-form-urlencoded' --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
+			token=$(curl --request POST "$INPUT_URL/authn-jwt/$INPUT_AUTHN_ID/$INPUT_ACCOUNT/authenticate" --header 'Content-Type: application/x-www-form-urlencoded' --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
 		fi
 
 	else
@@ -56,11 +74,11 @@ conjur_authn() {
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
 			# Authenticate and receive session token from Conjur - encode Base64
 			echo "::debug Authenticating with certificate"
-            token=$(curl --cacert "conjur_$INPUT_ACCOUNT.pem" --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64")
+            token=$(curl --cacert "conjur_$INPUT_ACCOUNT.pem" --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded"  --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64")
 		else
 			# Authenticate and receive session token from Conjur - encode Base64
             echo "::debug Authenticating without certificate"
-			token=$(curl --request POST --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64")
+			token=$(curl --request POST --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64")
 		fi
 	fi
 }
@@ -72,6 +90,7 @@ array_secrets() {
 
 set_secrets() {
   if [[ ${SECRETS[@]} ]]; then
+    telemetry_header
     for secret in "${SECRETS[@]}"; do
         IFS='|'
         read -ra METADATA <<< "$secret" # [0]=db/sqlusername [1]=sql_username
@@ -91,10 +110,10 @@ set_secrets() {
         
         if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Retrieving secret with certificate"
-            secretVal=$(curl --cacert "conjur_$INPUT_ACCOUNT.pem" -H "Authorization: Token token=\"$token\"" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
+            secretVal=$(curl --cacert "conjur_$INPUT_ACCOUNT.pem" -H "Authorization: Token token=\"$token\"" --header "x-cybr-telemetry: $encoded" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
         else
             echo "::debug Retrieving secret without certificate"
-            secretVal=$(curl -H "Authorization: Token token=\"$token\"" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
+            secretVal=$(curl -H "Authorization: Token token=\"$token\"" --header "x-cybr-telemetry: $encoded" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
         fi
 
         if [[ "${secretVal}" == "Malformed authorization token" ]]; then

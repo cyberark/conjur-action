@@ -14,6 +14,9 @@ inputs:
   api_key:
     description: 'The API Key associated with the given Host ID'
     required: false
+  authn_token_file:
+    description: 'The file path for the Conjur auth token'
+    required: false
   authn_id:
     description: 'The Service ID of JWT Authenticator'
     required: false
@@ -30,6 +33,7 @@ runs:
     - ${{ inputs.account }}
     - ${{ inputs.host_id }}
     - ${{ inputs.api_key }}
+    - ${{ inputs.authn_token_file }}
     - ${{ inputs.authn_id }}
     - ${{ inputs.secrets }}
     - ${{ inputs.certificate }}

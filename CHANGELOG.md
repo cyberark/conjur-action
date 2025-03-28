@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [2.0.7] - 2025-03-24
+
+### Added
+- Automated tests for OSS, EP, and Cloud
+- Telemetry headers integration
+
 ## [2.0.6] - 2024-02-16
 
 ### Security

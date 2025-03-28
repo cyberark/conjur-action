@@ -1,0 +1,76 @@
+services:
+  act:
+    build:
+      context: .
+      dockerfile: Dockerfile.act
+    container_name: act_container
+    command: sleep infinity
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../:/conjur-action
+    environment:
+      CONJUR_ACCOUNT: ${CONJUR_ACCOUNT}
+      CONJUR_APPLIANCE_URL: ${CONJUR_APPLIANCE_URL}
+      CONJUR_AUTHN_API_KEY: ${ADMIN_API_KEY}
+      CONJUR_AUTHN_LOGIN: ${CONJUR_AUTHN_LOGIN}
+      CONJUR_AUTHN_TOKEN_FILE: ${CONJUR_AUTHN_TOKEN_FILE}
+      CONJUR_SSL_CERTIFICATE: ${CONJUR_SSL_CERTIFICATE}
+      CONJUR_SECRET: ${CONJUR_SECRET}
+      DOCKER_HOST: unix:///var/run/docker.sock
+    networks:
+      - conjur_action
+
+  pg:
+    image: postgres:15
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    networks:
+      - conjur_action
+
+  conjur:
+    image: cyberark/conjur
+    command: server -a cucumber -p 3000
+    environment:
+      CONJUR_APPLIANCE_URL: http://localhost:3000
+      DATABASE_URL: postgres://postgres@pg/postgres
+      CONJUR_DATA_KEY: "W0BuL8iTr/7QvtjIluJbrb5LDAnmXzmcpxkqihO3dXA="
+    depends_on:
+      - pg
+    networks:
+      - conjur_action
+    links:
+      - pg
+
+  conjur_cli:
+    image: cyberark/conjur-cli:8
+    entrypoint: []
+    command: sleep infinity
+    environment:
+      CONJUR_APPLIANCE_URL: http://conjur:3000
+      CONJUR_ACCOUNT: cucumber
+      CONJUR_AUTHN_LOGIN: admin
+      CONJUR_AUTHN_API_KEY: ${ADMIN_API_KEY}
+    volumes:
+      - ./policy:/policy
+    networks:
+      - conjur_action
+    links:
+      - conjur
+
+  conjur-proxy-nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile_nginx
+    entrypoint: nginx-debug -g 'daemon off;'
+    environment:
+        TERM: xterm
+    networks:
+      - conjur_action
+    depends_on:
+      - conjur
+
+networks:
+  conjur_action:
+    name: conjur_action
+    external: true

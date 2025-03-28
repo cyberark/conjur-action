@@ -11,12 +11,10 @@ properties([
 // Performs release promotion.  No other stages will be run
 if (params.MODE == "PROMOTE") {
   release.promote(params.VERSION_TO_PROMOTE) { infrapool, sourceVersion, targetVersion, assetDirectory ->
-    // Any assets from sourceVersion Github release are available in assetDirectory
-    // Any version number updates from sourceVersion to targetVersion occur here
-    // Any publishing of targetVersion artifacts occur here
-    // Anything added to assetDirectory will be attached to the Github Release
-
-    //Note: assetDirectory is on the infrapool agent, not the local Jenkins agent.
+    infrapool.agentSh """
+      ls "${assetDirectory}"
+      cp "${assetDirectory}/conjur-action-${targetVersion}.tar.gz" ./conjur-action-${targetVersion}.tar.gz
+    """
   }
   release.copyEnterpriseRelease(params.VERSION_TO_PROMOTE)
   return
@@ -79,8 +77,67 @@ pipeline {
       }
     }
 
-    stage('Build Release Artifacts') {
+    stage('Run integration tests (Conjur OSS)') {
+      steps {
+        script {
+          infrapool.agentSh './bin/start.sh'
+        }
+      }
+    }
 
+     stage('Run integration tests (Conjur Enterprise)') {
+      steps {
+        script {
+          infrapool.agentSh './bin/start.sh -e'
+        }
+      }
+    }
+
+    stage('Run Conjur Cloud tests') {
+      stages {
+        stage('Create a Tenant') {
+          steps {
+            script {
+              TENANT = getConjurCloudTenant()
+            }
+          }
+        }
+        stage('Authenticate') {
+          steps {
+            script {
+              def id_token = getConjurCloudTenant.tokens(
+                infrapool: infrapool,
+                identity_url: "${TENANT.identity_information.idaptive_tenant_fqdn}",
+                username: "${TENANT.login_name}"
+              )
+
+              def conj_token = getConjurCloudTenant.tokens(
+                infrapool: infrapool,
+                conjur_url: "${TENANT.conjur_cloud_url}",
+                identity_token: "${id_token}"
+                )
+
+              env.conj_token = conj_token
+            }
+          }
+        }
+        stage('Run tests against Tenant') {
+          environment {
+            INFRAPOOL_CONJUR_APPLIANCE_URL="${TENANT.conjur_cloud_url}"
+            INFRAPOOL_CONJUR_AUTHN_LOGIN="${TENANT.login_name}"
+            INFRAPOOL_CONJUR_AUTHN_TOKEN="${env.conj_token}"
+            INFRAPOOL_TEST_CLOUD=true
+          }
+          steps {
+            script {
+              infrapool.agentSh "./bin/start.sh -c"
+            }
+          }
+        }
+      }
+    }
+
+    stage('Build Release Artifacts') {
       steps {
         script {
           infrapool.agentSh './bin/build_release'
@@ -97,9 +154,11 @@ pipeline {
 
       steps {
         script {
-          release(infrapool, { billOfMaterialsDirectory, assetDirectory ->
-            infrapool.agentArchiveArtifacts artifacts: 'conjur-action-*.tar.gz'
-          })
+          release(infrapool) { billOfMaterialsDirectory, assetDirectory, toolsDirectory ->
+            // Publish release artifacts to all the appropriate locations
+            // Copy any artifacts to assetDirectory to attach them to the Github release
+            infrapool.agentSh "cp conjur-action-*.tar.gz  ${assetDirectory}"
+          }
         }
       }
     }
@@ -108,8 +167,9 @@ pipeline {
   post {
     always {
       script {
-        releaseInfraPoolAgent(".infrapool/release_agents")
+        deleteConjurCloudTenant("${TENANT.id}")
       }
+      releaseInfraPoolAgent(".infrapool/release_agents")
     }
   }
 }
