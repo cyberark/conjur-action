@@ -66,13 +66,12 @@ conjur_authn() {
 }
 
 array_secrets() {
-    # Check if the input contains ";\n" and replace it with ";"
-    if [[ "$INPUT_SECRETS" == *";"$'\n'* ]]; then
-        INPUT_SECRETS=$(sed ':a;N;$!ba;s/;\n/;/g' <<< "$INPUT_SECRETS")
-    fi
-
-    IFS=';'
-    read -ra SECRETS <<< "$INPUT_SECRETS" # [0]=db/sqlusername | sql_username [1]=db/sql_password
+      IFS=$'\n' read -r -d '' -a array <<< "$INPUT_SECRETS"
+      for i in "${!array[@]}"; do
+        # trim whitespace and trailing ";"
+        line=$(echo "${array[$i]}"|sed 's/^[[:space:]]*//;s/[[:space:];]*$//')
+    	SECRETS+=($line)
+      done
 }
 
 set_secrets() {
