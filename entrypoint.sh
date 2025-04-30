@@ -38,6 +38,8 @@ conjur_authn() {
 
 		echo "::debug Authenticate via Authn-JWT"
 		JWT_TOKEN=$(curl -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
+		# Sleeping for 5 seconds due to issue with IAT claim not being valid when sent immediately to Conjur. 
+		# This will ensure token validity when using JWT and Github
 		sleep 5
         
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
