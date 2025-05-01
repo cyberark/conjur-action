@@ -1,5 +1,5 @@
 name: 'CyberArk Conjur Secret Fetcher Action'
-description: 'Securely retrieve a secret from CyberArk Conjur Secrets Manager and present to your action as a masked environment variable.'
+description: 'Securely retrieve a secret from CyberArk Conjur Secrets Manager and present to your action as a masked environment variable'
 author: 'CyberArk'
 inputs: 
   url:
