@@ -32,12 +32,48 @@ create_pem() {
     echo "$INPUT_CERTIFICATE" > conjur_"$INPUT_ACCOUNT".pem
 }
 
+handle_git_jwt() {
+    ## Handle JWT Token epoch time sync
+    
+    # Grab JWT Token from git IDP
+    local JWT_TOKEN=$( curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
+    # Parse payload body
+    j_body=$( echo "$JWT_TOKEN" | cut -d "." -f 2 )
+    # Repad b64 token (dirty)
+    padd="=="
+    jwt_padded="${j_body}${padd}"
+    #decode payload body
+    payload=$(echo "$jwt_padded" | base64 -d)
+    # capture IAT time
+    iat=$( echo "$payload" | jq .iat )
+
+    # Check if IAT less than or equal to server epoch
+    if (( "$iat" <= "$EPOCHSECONDS" )); then
+
+        echo "::debug No delta between iat [$iat] and epoch [$EPOCHSECONDS]"
+        echo "$JWT_TOKEN"
+
+    # check if IAT greater than server epoch, if so, calculate delta and sleep before returning
+    elif (( "$iat" > "$EPOCHSECONDS" )); then
+
+        delta=$(( "$iat" - "$EPOCHSECONDS" ))
+        echo "::debug delta found: iat [$iat] // epoch [$EPOCHSECONDS]; sleeping for $delta seconds"
+        sleep "$delta"
+        echo "$JWT_TOKEN"
+
+    else
+        echo "::debug unhandled problem"
+        exit 1 
+    fi
+    ####
+}
+
 conjur_authn() {
 
 	if [[ -n "$INPUT_AUTHN_ID" ]]; then
 
 		echo "::debug Authenticate via Authn-JWT"
-		JWT_TOKEN=$(curl -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
+		JWT_TOKEN=$(handle_git_jwt)
         
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Authenticating with certificate"
