@@ -1,0 +1,41 @@
+FROM ubuntu:22.04
+
+ENV UBUNTU_CODENAME=jammy
+
+COPY sources.list /etc/apt/sources.list
+
+RUN apt-get update -y || (echo "Host mirrors failed, trying default mirrors..." && \
+
+    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse" > /etc/apt/sources.list && \
+    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse" >> /etc/apt/sources.list && \
+    apt-get update -y) || (echo "Default mirrors failed, trying mirror list from mirrors.ubuntu.com..." && \
+
+    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME} main restricted universe multiverse" > /etc/apt/sources.list && \
+    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME}-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME}-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME}-security main restricted universe multiverse" >> /etc/apt/sources.list && \
+    apt-get update -y)
+
+RUN apt-get install -y \
+    git \
+    ruby-full \
+    libffi-dev \
+    libssl-dev \
+    libreadline-dev \
+    zlib1g-dev \
+    curl \
+    shunit2 \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN gem install bashcov simplecov simplecov-cobertura
+
+WORKDIR /conjur-action
+
+COPY . .
+
+ENV COVERAGE=true
+
+RUN chmod +x test/entrypoint_test.sh
