@@ -4,8 +4,6 @@ GitHub Action for secure secrets delivery to your workflow test environment usin
 
 Supports authenticating with CyberArk Conjur using host identity and JWT authentication.
 
-[![](https://github.com/infamousjoeg/conjur-action/workflows/conjur-action%20Test/badge.svg)](https://github.com/infamousjoeg/conjur-action/actions?workflow=conjur-action+Test)
-
 ## Certification level
 [![](https://img.shields.io/badge/Certification%20Level-Certified-28A745?)](https://github.com/cyberark/community/blob/master/Conjur/conventions/certification-levels.md)
 
