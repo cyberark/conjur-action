@@ -1,5 +1,7 @@
 #!/usr/bin/env groovy
 
+@Library("product-pipelines-shared-library") _
+
 // Automated release, promotion and dependencies
 properties([
   // Include the automated release parameters for the build
@@ -77,6 +79,24 @@ pipeline {
       }
     }
 
+    stage('Code Coverage') {
+      steps {
+        script {
+          infrapool.agentSh './bin/coverage.sh'
+          infrapool.agentStash name: 'junit-xml', includes: 'output/*.xml'
+        }
+      }
+      post {
+        always {
+          unstash 'junit-xml'
+          junit 'output/junit.xml'
+          cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'output/coverage.xml', conditionalCoverageTargets: '30, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '30, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '30, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
+          codacy action: 'reportCoverage', filePath: "output/coverage.xml"
+
+        }
+      }
+    }
+
     stage('Run integration tests (Conjur OSS)') {
       steps {
         script {
@@ -131,6 +151,42 @@ pipeline {
           steps {
             script {
               infrapool.agentSh "./bin/start.sh -c"
+            }
+          }
+        }
+        stage('Get Edge Token') {
+          steps {
+            script {
+              def edge_token = getConjurCloudTenant.tokens(
+                infrapool: infrapool,
+                conjur_url: "${TENANT.conjur_cloud_url}",
+                edge_name: "${TENANT.conjur_edge_name}",
+                conjur_token: "${conj_token}"
+              )
+
+              def deploy_edge = getConjurCloudTenant.edge(
+                infrapool: infrapool,
+                conjur_url: "${TENANT.conjur_cloud_url}",
+                edge_name: "edge-test",
+                edge_token: "${edge_token}",
+                common_name: "edge-test",
+                subject_alt_names: "edge-test"
+              )
+              
+              env.edge_token = edge_token
+            }
+          }
+        }
+        stage('Run tests against Edge') {
+          environment {
+            INFRAPOOL_CONJUR_APPLIANCE_URL="${TENANT.conjur_cloud_url}"
+            INFRAPOOL_CONJUR_AUTHN_LOGIN="${TENANT.login_name}"
+            INFRAPOOL_CONJUR_AUTHN_TOKEN="${env.conj_token}"
+            INFRAPOOL_TEST_CLOUD=true
+          }
+          steps {
+            script {
+              infrapool.agentSh "./bin/start.sh -ed"
             }
           }
         }

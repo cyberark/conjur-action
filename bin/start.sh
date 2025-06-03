@@ -5,6 +5,7 @@ declare -x DOCKER_NETWORK=''
 
 declare -x ENTERPRISE='false'
 declare -x CLOUD='false'
+declare -x EDGE='false'
 declare -x API_KEY=''
 declare -x ADMIN_API_KEY=''
 
@@ -31,6 +32,13 @@ while true ; do
         exit 1
       fi
       CLOUD="true"
+      shift ;;
+    -ed )  
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "Cannot setup a local environment using Conjur Edge"
+        exit 1
+      fi
+      EDGE="true"
       shift ;;
     -h | --help ) help && exit 0 ;;
     * )
@@ -163,6 +171,23 @@ function main() {
     make_network $DOCKER_NETWORK
     #upload the policy into cloud tenant pool
     deploy_conjur_cloud
+    #Enable the debugging
+    set -x
+  elif [[ "$EDGE" == "true" ]]; then
+    #disable the debugging
+    set +x
+    export CONJUR_APPLIANCE_URL="https://edge-test:8443/api"
+    export CONJUR_ACCOUNT=conjur
+    export CONJUR_AUTHN_LOGIN=$INFRAPOOL_CONJUR_AUTHN_LOGIN
+    echo "$INFRAPOOL_CONJUR_AUTHN_TOKEN" > "$(bin_dir)/access_token"
+    export CONJUR_AUTHN_TOKEN_FILE="/conjur-action/bin/access_token"
+    export CONJUR_SECRET="data/github-app/Dev-Team-credential1"
+    export DOCKER_NETWORK='conjur_action'
+    make_network $DOCKER_NETWORK
+    openssl s_client -connect localhost:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > "$(bin_dir)/conjur.pem"
+    export CONJUR_SSL_CERTIFICATE=$(cat $(bin_dir)/conjur.pem)
+    # Adding edge to the docker network
+    docker network inspect $DOCKER_NETWORK --format '{{json .Containers}}' | grep -q 'edge-test' || docker network connect $DOCKER_NETWORK edge-test
     #Enable the debugging
     set -x
   else
