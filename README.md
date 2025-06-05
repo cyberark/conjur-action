@@ -362,6 +362,14 @@ In the above example, the first secret section is `db/sqlusername|sql_username`.
 
 The second secret section is `db/sql_password`.  When no name is given for the environment variable, the Conjur Variable Name will be used.  In this example, the value would be set to `SQL_PASSWORD` as the environment variable name.
 
+### Multiline
+```
+secrets: |
+   db/sqlusername|sql_username;
+   db/sql_password;
+```
+For improved readability the secret section accepts multiline values.  The `|` separates the Conjur Variable ID from the environment variable that will contain the value of the Conjur Variable's value.  `;` and `newline` separate the secrets sections.
+
 ## Security
 
 ### Protecting Arguments
