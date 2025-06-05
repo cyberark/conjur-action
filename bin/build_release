@@ -4,9 +4,8 @@ set -eo pipefail
 
 # Navigate to the bin directory (where this script lives) to ensure we can run this script
 # from anywhere.
-cd "$(dirname "$0")"
 
-. ./build_utils
+. ./bin/build_utils
 
 function main() {
     local REPO_ROOT
@@ -22,7 +21,7 @@ function main() {
     existing_id=$( docker ps -a -f "name=conjur-action" -q)
     [ ! -z "$existing_id" ] && docker rm "${existing_id}"
 
-    docker build -f Dockerfile.build -t node-docker .
+    docker build -f bin/Dockerfile.build -t node-docker .
     docker run --name=conjur-action node-docker /bin/bash -c "cd /var/www && tar -czf conjur-action.tar.gz conjur-action"
     
     container_id=$( docker ps -a -f "name=conjur-action" -q)

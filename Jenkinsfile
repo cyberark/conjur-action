@@ -79,6 +79,28 @@ pipeline {
       }
     }
 
+    stage('Build Release Artifacts') {
+      steps {
+        script {
+          infrapool.agentSh './bin/build_release'
+        }
+      }
+    }
+    
+    stage('Verify VERSION File') {
+      steps {
+        script {
+          infrapool.agentSh '''
+            [ ! -d bin/tmp ] && mkdir -p bin/tmp
+            tarFile=$(find . -name "conjur-action-*.tar.gz" -print -quit)
+            tar -xzf "$tarFile" -C bin/tmp
+            [ -f "bin/tmp/conjur-action/VERSION" ] && echo "VERSION file found." || (echo "VERSION file not found" && exit 1)
+            rm -rf bin/tmp 2>/dev/null
+          '''
+        }
+      }
+    }
+
     stage('Code Coverage') {
       steps {
         script {
@@ -189,14 +211,6 @@ pipeline {
               infrapool.agentSh "./bin/start.sh -ed"
             }
           }
-        }
-      }
-    }
-
-    stage('Build Release Artifacts') {
-      steps {
-        script {
-          infrapool.agentSh './bin/build_release'
         }
       }
     }

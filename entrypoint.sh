@@ -80,7 +80,7 @@ handle_git_jwt() {
 }
 
 telemetry_header(){
-    telemetry_val="in=Github Actions&it=cybr-secretsmanager&iv=$(cat VERSION)&vv=Github"
+    telemetry_val="in=Github Actions&it=cybr-secretsmanager&iv=$(cat VERSION)&vn=Github"
     encoded=$(echo -n "$telemetry_val" | base64 | tr '+/' '-_' | tr -d '=' | tr -d '[:space:]')
 }
 
