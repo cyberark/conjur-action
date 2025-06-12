@@ -2,8 +2,14 @@ FROM alpine:3.19
 
 RUN apk add --no-cache bash curl jq
 
-COPY entrypoint.sh /entrypoint.sh
+RUN mkdir -p /conjur-action
 
-RUN chmod +x /entrypoint.sh
+COPY entrypoint.sh /conjur-action/entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
+COPY CHANGELOG.md /conjur-action/CHANGELOG.md
+
+RUN chmod +x /conjur-action/entrypoint.sh
+
+WORKDIR /conjur-action
+
+ENTRYPOINT ["/conjur-action/entrypoint.sh"]
