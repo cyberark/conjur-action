@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [2.0.11] - 2025-06-17
+
+### Added
+- Fixed a changelog issue in telemetry header preparation
+
 ## [2.0.10] - 2025-06-06
 
 ### Added
