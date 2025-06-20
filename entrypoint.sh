@@ -1,6 +1,8 @@
 #!/bin/bash
 # Conjur Secret Retrieval for GitHub Action conjur-action
 
+script_dir=$(dirname "$(realpath "$0")")
+
 main() {
     create_pem
     if [[ -z "$INPUT_AUTHN_TOKEN_FILE" ]]; then
@@ -80,7 +82,12 @@ handle_git_jwt() {
 }
 
 telemetry_header(){
-    get_version=$(grep -o '\[[0-9]\+\.[0-9]\+\.[0-9]\+\]' CHANGELOG.md | head -n 1 | tr -d '[]')
+    changelog_file="$script_dir/CHANGELOG.md"
+    if [ -f "$changelog_file" ]; then
+        get_version=$(grep -o '\[[0-9]\+\.[0-9]\+\.[0-9]\+\]' $changelog_file | head -n 1 | tr -d '[]')
+    else
+        get_version="0.0.0-default"
+    fi
     telemetry_val="in=Github Actions&it=cybr-secretsmanager&iv=$get_version&vn=Github"
     encoded=$(echo -n "$telemetry_val" | base64 | tr '+/' '-_' | tr -d '=' | tr -d '[:space:]')
 }
