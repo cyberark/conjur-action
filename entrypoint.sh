@@ -50,10 +50,10 @@ create_pem() {
 handle_git_jwt() {
     ## Handle JWT Token epoch time sync
     
-    # Grab JWT Token from git IDP
-    local JWT_TOKEN=$( curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
+    # Grab JWT Token
+    local jwt_token=$1
     # Parse payload body
-    j_body=$( echo "$JWT_TOKEN" | cut -d "." -f 2 )
+    j_body=$( echo "$jwt_token" | cut -d "." -f 2 )
     # Repad b64 token (dirty)
     padd="=="
     jwt_padded="${j_body}${padd}"
@@ -97,7 +97,8 @@ conjur_authn() {
 	if [[ -n "$INPUT_AUTHN_ID" ]]; then
 
 		echo "::debug Authenticate via Authn-JWT"
-        JWT_TOKEN=$(handle_git_jwt)
+        JWT_TOKEN=$( curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
+        handle_git_jwt "$JWT_TOKEN"
         
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Authenticating with certificate"
