@@ -184,15 +184,44 @@ test_array_secrets_trailing_semicolon() {
 
 # Test 'conjur_authn' function for jwt
 test_conjur_authn_jwt() {
-  handle_git_jwt() { echo "jwt-token"; }
+
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  curl() {
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_URL"* ]]; then
+      echo '{"value":"dummy-jwt-token"}'
+    fi
+  }
+
   result=$(conjur_authn)
 
   assertContains "$result" "::debug Authenticate via Authn-JWT"
 }
 
 test_conjur_authn_jwt_without_certificate() {
-  INPUT_CERTIFICATE=""
-  handle_git_jwt() { echo "jwt-token"; }
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  curl() {
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_URL"* ]]; then
+      echo '{"value":"dummy-jwt-token"}'
+    fi
+  }
 
   result=$(conjur_authn)
 
