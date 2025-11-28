@@ -1,41 +1,30 @@
-FROM ubuntu:22.04
+FROM ruby:3.4.7-slim
 
-ENV UBUNTU_CODENAME=jammy
+ARG DEBIAN_CODENAME=trixie
 
-COPY sources.list /etc/apt/sources.list
+ENV COVERAGE=true \
+    DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update -y || (echo "Host mirrors failed, trying default mirrors..." && \
-
-    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse" > /etc/apt/sources.list && \
-    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse" >> /etc/apt/sources.list && \
-    apt-get update -y) || (echo "Default mirrors failed, trying mirror list from mirrors.ubuntu.com..." && \
-
-    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME} main restricted universe multiverse" > /etc/apt/sources.list && \
-    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME}-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME}-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb mirror://mirrors.ubuntu.com/mirrors.txt ${UBUNTU_CODENAME}-security main restricted universe multiverse" >> /etc/apt/sources.list && \
+RUN apt-get update -y || (echo "Host mirrors failed, trying default Debian mirrors..." && \
+    echo "deb http://deb.debian.org/debian ${DEBIAN_CODENAME} main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian ${DEBIAN_CODENAME}-updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian-security ${DEBIAN_CODENAME}-security main contrib non-free" >> /etc/apt/sources.list && \
+    apt-get update -y) || (echo "Default Debian mirrors failed, trying mirror list from deb.debian.org..." && \
+    echo "deb mirror://mirrors.debian.org/mirror.txt ${DEBIAN_CODENAME} main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb mirror://mirrors.debian.org/mirror.txt ${DEBIAN_CODENAME}-updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb mirror://mirrors.debian.org/mirror.txt ${DEBIAN_CODENAME}-security main contrib non-free" >> /etc/apt/sources.list && \
     apt-get update -y)
 
-RUN apt-get install -y \
-    git \
-    ruby-full \
-    libffi-dev \
-    libssl-dev \
-    libreadline-dev \
-    zlib1g-dev \
-    curl \
-    shunit2 \
+RUN apt-get install -y --no-install-recommends \
     jq \
-    && rm -rf /var/lib/apt/lists/*
+    shunit2 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN gem install bashcov simplecov simplecov-cobertura
+RUN gem install --no-document \
+    bashcov \
+    simplecov:0.22.0 \
+    simplecov-cobertura:2.1.0
 
 WORKDIR /conjur-action
-
 COPY . .
-
-ENV COVERAGE=true
-
-RUN chmod +x test/entrypoint_test.sh
