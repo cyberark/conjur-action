@@ -1,8 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
-and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/cyberark/conjur-action/compare/v2.0.6...HEAD
+[Unreleased]: https://github.com/cyberark/conjur-action/compare/v2.0.12...HEAD
+[2.0.12]: https://github.com/cyberark/conjur-action/compare/v2.0.11...v2.0.12
+[2.0.11]: https://github.com/cyberark/conjur-action/compare/v2.0.10...v2.0.11
+[2.0.10]: https://github.com/cyberark/conjur-action/compare/v2.0.9...v2.0.10
+[2.0.9]: https://github.com/cyberark/conjur-action/compare/v2.0.8...v2.0.9
+[2.0.8]: https://github.com/cyberark/conjur-action/compare/v2.0.7...v2.0.8
+[2.0.7]: https://github.com/cyberark/conjur-action/compare/v2.0.6...v2.0.7
 [2.0.6]: https://github.com/cyberark/conjur-action/compare/v2.0.5...v2.0.6
 [2.0.5]: https://github.com/cyberark/conjur-action/releases/tag/v2.0.5
