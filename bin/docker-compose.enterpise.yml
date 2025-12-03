@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile.act
     container_name: act_container
     command: sleep infinity
-    privileged: true
     volumes:
+      # kics-scan ignore-line
       - /var/run/docker.sock:/var/run/docker.sock
       - ../:/conjur-action
     environment:

@@ -1,3 +1,5 @@
+# kics-scan disable=fd54f200-402c-4333-a5a4-36ef6709af2f
+# Explanation: Root is acceptable because this image is used only for local testing.
 FROM alpine:3.19
 
 RUN apk add --no-cache bash curl jq
