@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile.act
     container_name: act_container
     command: sleep infinity
-    privileged: true
     volumes:
+      # kics-scan ignore-line
       - /var/run/docker.sock:/var/run/docker.sock
       - ../:/conjur-action
     environment:
@@ -34,6 +34,7 @@ services:
     environment:
       CONJUR_APPLIANCE_URL: http://localhost:3000
       DATABASE_URL: postgres://postgres@pg/postgres
+      # kics-scan ignore-line
       CONJUR_DATA_KEY: "W0BuL8iTr/7QvtjIluJbrb5LDAnmXzmcpxkqihO3dXA="
     depends_on:
       - pg

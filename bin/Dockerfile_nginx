@@ -1,3 +1,5 @@
+# kics-scan disable=fd54f200-402c-4333-a5a4-36ef6709af2f
+# Explanation: This container is for local testing only; running as root is acceptable.
 FROM nginx:1.29.3
 
 ENV DEBIAN_FRONTEND=noninteractive

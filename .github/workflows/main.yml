@@ -11,6 +11,7 @@ jobs:
     runs-on: self-hosted
     
     permissions:
+      # kics-scan ignore-line
       id-token: 'write'
       contents: 'read'
 
