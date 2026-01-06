@@ -30,6 +30,10 @@ function repo_root() {
   git rev-parse --show-toplevel
 }
 
+function git_commit() {
+  git rev-parse --short HEAD
+}
+
 function project_version() {
   # VERSION derived from CHANGELOG and automated release library
   echo "$(<"$(repo_root)/VERSION")"
@@ -41,4 +45,53 @@ function project_semantic_version() {
 
   # Remove Jenkins build number from VERSION
   echo "${version/-*/}"
+}
+
+function project_semantic_version_with_commit() {
+  echo "$(project_semantic_version)-$(git_commit)"
+}
+
+function project_version_with_commit() {
+  echo "$(project_version)-$(git_commit)"
+}
+
+# generate less specific versions, eg. given 1.2.3 will print 1.2 and 1
+# (note: the argument itself is not printed, append it explicitly if needed)
+function gen_versions() {
+  local version="${1}"
+
+  # echo "${version%%.*}-latest"
+  while [[ "${version}" = *.* ]]; do
+    version="${version%.*}"
+    echo "${version}"
+  done
+}
+
+function tag_and_push() {
+  local source="$1"
+  shift
+  local target="$1"
+  shift
+
+  local registry="${target%%/*}"
+  
+  echo "Tagging and pushing $target..."
+  echo "[DEBUG] Registry: ${registry}"
+  echo "[DEBUG] ARTIFACTORY_USERNAME is ${ARTIFACTORY_USERNAME:+set}${ARTIFACTORY_USERNAME:-unset}"
+  
+  # Login to registry if credentials are available
+  if [[ -n "${ARTIFACTORY_USERNAME:-}" && -n "${ARTIFACTORY_PASSWORD:-}" ]]; then
+    echo "Logging in to ${registry}..."
+    echo "${ARTIFACTORY_PASSWORD}" | docker login "${registry}" -u "${ARTIFACTORY_USERNAME}" --password-stdin
+  else
+    echo "[WARNING] ARTIFACTORY_USERNAME or ARTIFACTORY_PASSWORD not set, attempting push without explicit login"
+  fi
+  
+  docker tag "${source}" "${target}"
+  docker push "${target}"
+  
+  # Logout after push
+  if [[ -n "${ARTIFACTORY_USERNAME:-}" && -n "${ARTIFACTORY_PASSWORD:-}" ]]; then
+    docker logout "${registry}"
+  fi
 }

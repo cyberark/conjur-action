@@ -13,11 +13,31 @@ properties([
 // Performs release promotion.  No other stages will be run
 if (params.MODE == "PROMOTE") {
   release.promote(params.VERSION_TO_PROMOTE) { infrapool, sourceVersion, targetVersion, assetDirectory ->
+    runSecurityScans(infrapool,
+        image: "registry.tld/${containerImageWithTag(infrapool)}",
+        buildMode: params.MODE,
+        branch: env.BRANCH_NAME,
+        arch: 'linux/amd64'
+    )
+
+    infrapool.agentGet from: "${assetDirectory}/", to: "./"
+
+    signArtifacts patterns: ["*.tar.gz"]
+    signArtifacts patterns: ["*.tar"]
+
+    infrapool.agentPut from: "*.sig", to: "${assetDirectory}"
+
+    echo "[DEBUG] Publishing to DockerHub"
+    // NOTE: the use of --pull to ensure source images are pulled from internal registry
     infrapool.agentSh """
-      ls "${assetDirectory}"
-      cp "${assetDirectory}/conjur-action-${targetVersion}.tar.gz" ./conjur-action-${targetVersion}.tar.gz
-    """
+          source ./bin/build_utils
+          ./bin/publish_container_images --promote --pull \
+            --source ${sourceVersion}-\$(git_commit) \
+            --target ${targetVersion}
+        """
+    sh 'git config --global --add safe.directory "$(pwd)"'
   }
+
   release.copyEnterpriseRelease(params.VERSION_TO_PROMOTE)
   return
 }
@@ -28,6 +48,7 @@ pipeline {
   options {
     timestamps()
     buildDiscarder(logRotator(numToKeepStr: '30'))
+    timeout(time: 1, unit: 'HOURS')
   }
   
   triggers {
@@ -51,6 +72,14 @@ pipeline {
         script {
           currentBuild.result = 'ABORTED'
           error("Aborting build because this build was triggered from upstream, but no release was built")
+        }
+      }
+    }
+
+    stage('Scan for internal URLs') {
+      steps {
+        script {
+          detectInternalUrls()
         }
       }
     }
@@ -83,6 +112,7 @@ pipeline {
       steps {
         script {
           infrapool.agentSh './bin/build_release'
+          infrapool.agentSh './bin/publish_container_images --internal'
         }
       }
     }
@@ -199,6 +229,27 @@ pipeline {
           }
         }
       }
+
+      post {
+        always {
+          script {
+            deleteConjurCloudTenant("${TENANT.id}")
+          }
+        }
+      }
+    }
+
+    stage("Scan main Docker image") {
+      steps {
+        script {
+          runSecurityScans(infrapool,
+            image: "registry.tld/${containerImageWithTag(infrapool)}",
+            buildMode: params.MODE,
+            branch: env.BRANCH_NAME,
+            arch: 'linux/amd64'
+          )
+        }
+      }
     }
 
     stage('Release') {
@@ -214,18 +265,22 @@ pipeline {
             // Publish release artifacts to all the appropriate locations
             // Copy any artifacts to assetDirectory to attach them to the Github release
             infrapool.agentSh "cp conjur-action-*.tar.gz  ${assetDirectory}"
+            infrapool.agentSh "cp conjur-action:*.tar  ${assetDirectory}"
           }
         }
       }
     }
   }
-
   post {
     always {
-      script {
-        deleteConjurCloudTenant("${TENANT.id}")
-      }
       releaseInfraPoolAgent(".infrapool/release_agents")
     }
   }
+}
+
+def containerImageWithTag(infrapool) {
+  infrapool.agentSh(
+    returnStdout: true,
+    script: 'source ./bin/build_utils && echo "conjur-action:$(project_version_with_commit)"'
+  )
 }

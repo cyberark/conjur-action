@@ -8,27 +8,39 @@ set -eo pipefail
 . ./bin/build_utils
 
 function main() {
+
     local REPO_ROOT
     local PROJECT_WD
     local VERSION
+    local CONTAINER_IMAGE_AND_TAG
 
     REPO_ROOT="$(repo_root)"
     PROJECT_WD="github.com/cyberark/conjur-action"
     VERSION="$(project_semantic_version)"
+    CONTAINER_IMAGE_AND_TAG="conjur-action:$(project_version_with_commit)"
 
-    echo "Docker image for release build: ubuntu"
-
+    echo "Start packaging release artifacts"
     existing_id=$( docker ps -a -f "name=conjur-action" -q)
     [ ! -z "$existing_id" ] && docker rm "${existing_id}"
 
     docker build -f bin/Dockerfile.build -t node-docker .
-    docker run --name=conjur-action node-docker /bin/bash -c "cd /var/www && tar -czf conjur-action.tar.gz conjur-action"
+    docker run --name=conjur-action node-docker /bin/bash -c "cd /var/www && tar -cz --exclude=.infrapool --exclude=resourceScript_parseChangelog.sh -f conjur-action.tar.gz conjur-action"
     
     container_id=$( docker ps -a -f "name=conjur-action" -q)
     docker cp "${container_id}":/var/www/conjur-action.tar.gz "${REPO_ROOT}"/conjur-action-"${VERSION}".tar.gz
     docker rm "${container_id}"
     
+
+    echo "Building ${CONTAINER_IMAGE_AND_TAG} container image"
+    docker build \
+        --tag "${CONTAINER_IMAGE_AND_TAG}" \
+        --rm \
+        --file "${REPO_ROOT}/Dockerfile" \
+        "${REPO_ROOT}"
+
     echo "Release build completed"
+
+    docker save -o "${CONTAINER_IMAGE_AND_TAG}.tar" "${CONTAINER_IMAGE_AND_TAG}"
 }
 
 main "$@"

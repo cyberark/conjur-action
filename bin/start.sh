@@ -140,6 +140,26 @@ function deploy_conjur_cloud() {
   set_conjur_cloud_variable "data/github-app/Dev-Team-credential2" "test_dev_2"
 }
 
+function load_container_image_into_act() {
+  local compose_file="$1"
+  local compose_args=()
+  
+  if [ -n "$compose_file" ]; then
+    compose_args=(-f "$compose_file")
+  fi
+  echo $(ls -t conjur-action*.tar)
+  echo $(pwd)
+  echo $(ls -l ..)
+  # Copy and load the container image tar file created by build_release into the act container
+  CONTAINER_IMAGE_TAR=$(ls -t ../conjur-action*.tar 2>/dev/null | head -1)
+  echo "$CONTAINER_IMAGE_TAR"
+  if [ -n "$CONTAINER_IMAGE_TAR" ]; then
+    docker cp "$CONTAINER_IMAGE_TAR" act_container:/tmp/
+    # docker compose "${compose_args[@]}" exec -T act bash -c "docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR")"
+    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:3"
+  fi
+}
+
 function main() {
   # remove previous environment
   clean
@@ -215,12 +235,15 @@ CERTIFICATE="$CONJUR_SSL_CERTIFICATE"
 EOF
   if [[ "$ENTERPRISE" == "true" ]]; then
     docker compose -f docker-compose.enterpise.yml up -d --build act
+    load_container_image_into_act "docker-compose.enterpise.yml"
     docker compose -f docker-compose.enterpise.yml exec -T act bash -c "cp /conjur-action/bin/main.yml /conjur-action/.github/workflows"
-    docker compose -f docker-compose.enterpise.yml exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim --secret-file=./.github/workflows/.secrets push"
+    docker compose -f docker-compose.enterpise.yml exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim --pull=false --secret-file=./.github/workflows/.secrets push"
   else
     docker compose up -d --build act
+    load_container_image_into_act "docker-compose.yml"
     docker compose exec -T act bash -c "cp /conjur-action/bin/main.yml /conjur-action/.github/workflows"
-    docker compose exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim --secret-file=./.github/workflows/.secrets push"
+    echo "---- running github action locally ----"
+    docker compose exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim  --pull=false --secret-file=./.github/workflows/.secrets push"
   fi
 }
 
