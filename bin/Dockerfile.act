@@ -20,4 +20,4 @@ RUN wget -qO act.tar.gz https://github.com/nektos/act/releases/latest/download/a
     sudo tar xf act.tar.gz -C /usr/local/bin act && \
     rm -rf act.tar.gz
 
-WORKDIR /conjur-action
+WORKDIR /conjur-action-git

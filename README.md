@@ -73,7 +73,7 @@ jobs:
     steps:
       # ...
       - name: Import Secrets using CyberArk Conjur Secret Fetcher Action
-        uses: cyberark/conjur-action@v2.0.5
+        uses: cyberark/conjur-action@v3
         with:
           url: ${{ secrets.CONJUR_URL }}
           account: cyberarkdemo
@@ -117,7 +117,7 @@ jobs:
     steps:
       # ...
       - name: Import Secrets using CyberArk Conjur Secret Fetcher Action
-        uses: cyberark/conjur-action@v2.0.5
+        uses: cyberark/conjur-action@v3
         with:
           url: ${{ secrets.CONJUR_URL }}
           account: cyberarkdemo
@@ -277,7 +277,7 @@ conjur variable set -i conjur/authn-jwt/github/identity-path -v "/github-apps"
 - !permit
   resource: *devvariables
   privileges: [ read, execute ]
-  roles: !group gitlab-apps
+  roles: !group github-apps
 ```
   - Load the policy into root:
   ```
@@ -350,7 +350,7 @@ conjur policy load -b data/vault/secrets-safe -f grant_permissions.yml
 
 ## Secrets Syntax for .github/workflows .yml file
 
-`{{ conjurVariable1|envVarName1;conjurVariable2 }}`
+`conjurVariable1|envVarName1;conjurVariable2`
 
 The `secrets` argument is a semi-colon (`;`) delimited list of secrets. Spaces are NOT SUPPORTED. The list can optionally contain the name to set for the environment variable.
 

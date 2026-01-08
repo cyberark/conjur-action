@@ -51,4 +51,3 @@ jobs:
         run: printenv SQL_PASSWORD | sed 's/./& /g'
       - name: Clean Workspace
         uses: AutoModality/action-clean@v1.1.0
-

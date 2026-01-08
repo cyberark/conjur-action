@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-01-12
+
+### Changed
+- The action is now using a pre-build image hosted on DockerHub in order to enable the usage of kubernetes mode for self-hosted runners
+- The image now uses a non-root user
+
 ## [2.0.12] - 2025-06-24
 
 ### Added
@@ -48,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/cyberark/conjur-action/compare/v2.0.12...HEAD
+[Unreleased]: https://github.com/cyberark/conjur-action/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/cyberark/conjur-action/compare/v2.0.12...v3.0.0
 [2.0.12]: https://github.com/cyberark/conjur-action/compare/v2.0.11...v2.0.12
 [2.0.11]: https://github.com/cyberark/conjur-action/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/cyberark/conjur-action/compare/v2.0.9...v2.0.10
