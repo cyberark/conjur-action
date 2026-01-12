@@ -184,7 +184,7 @@ function main() {
     export CONJUR_ACCOUNT=conjur
     export CONJUR_AUTHN_LOGIN=$INFRAPOOL_CONJUR_AUTHN_LOGIN
     echo "$INFRAPOOL_CONJUR_AUTHN_TOKEN" > "$(bin_dir)/access_token"
-    export CONJUR_AUTHN_TOKEN_FILE="/conjur-action/bin/access_token"
+    export CONJUR_AUTHN_TOKEN_FILE="/conjur-action-git/bin/access_token"
     export CONJUR_SSL_CERTIFICATE=$(cat $(bin_dir)/cloud_ca.pem)
     export CONJUR_SECRET="data/github-app/Dev-Team-credential1"
     export DOCKER_NETWORK='conjur_action'
@@ -200,7 +200,7 @@ function main() {
     export CONJUR_ACCOUNT=conjur
     export CONJUR_AUTHN_LOGIN=$INFRAPOOL_CONJUR_AUTHN_LOGIN
     echo "$INFRAPOOL_CONJUR_AUTHN_TOKEN" > "$(bin_dir)/access_token"
-    export CONJUR_AUTHN_TOKEN_FILE="/conjur-action/bin/access_token"
+    export CONJUR_AUTHN_TOKEN_FILE="/conjur-action-git/bin/access_token"
     export CONJUR_SECRET="data/github-app/Dev-Team-credential1"
     export DOCKER_NETWORK='conjur_action'
     make_network $DOCKER_NETWORK
@@ -236,12 +236,12 @@ EOF
   if [[ "$ENTERPRISE" == "true" ]]; then
     docker compose -f docker-compose.enterpise.yml up -d --build act
     load_container_image_into_act "docker-compose.enterpise.yml"
-    docker compose -f docker-compose.enterpise.yml exec -T act bash -c "cp /conjur-action/bin/main.yml /conjur-action/.github/workflows"
+    docker compose -f docker-compose.enterpise.yml exec -T act bash -c "cp /conjur-action-git/bin/main.yml /conjur-action-git/.github/workflows"
     docker compose -f docker-compose.enterpise.yml exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim --pull=false --secret-file=./.github/workflows/.secrets push"
   else
     docker compose up -d --build act
     load_container_image_into_act "docker-compose.yml"
-    docker compose exec -T act bash -c "cp /conjur-action/bin/main.yml /conjur-action/.github/workflows"
+    docker compose exec -T act bash -c "cp /conjur-action-git/bin/main.yml /conjur-action-git/.github/workflows"
     echo "---- running github action locally ----"
     docker compose exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim  --pull=false --secret-file=./.github/workflows/.secrets push"
   fi

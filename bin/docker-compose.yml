@@ -8,7 +8,7 @@ services:
     volumes:
       # kics-scan ignore-line
       - /var/run/docker.sock:/var/run/docker.sock
-      - ../:/conjur-action
+      - ../:/conjur-action-git
     environment:
       CONJUR_ACCOUNT: ${CONJUR_ACCOUNT}
       CONJUR_APPLIANCE_URL: ${CONJUR_APPLIANCE_URL}
