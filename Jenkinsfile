@@ -278,6 +278,14 @@ pipeline {
   }
 }
 
+
+def containerImageWithTag(infrapool) {
+  infrapool.agentSh(
+    returnStdout: true,
+    script: 'source ./bin/build_utils && echo "conjur-action:$(project_version_with_commit)"'
+  )
+}
+
 def git_commit(infrapool) {
   infrapool.agentSh(
     returnStdout: true,
