@@ -27,7 +27,7 @@ inputs:
     description: 'The Self-Signed SSL Certificate for your CyberArk Conjur instance'
 runs:
   using: 'docker'
-  image: 'docker://cyberark/conjur-action:2.1'
+  image: 'docker://cyberark/conjur-action:2.1.0'
   args:
     - ${{ inputs.url }}
     - ${{ inputs.account }}
