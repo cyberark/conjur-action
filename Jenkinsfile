@@ -14,7 +14,7 @@ properties([
 if (params.MODE == "PROMOTE") {
   release.promote(params.VERSION_TO_PROMOTE) { infrapool, sourceVersion, targetVersion, assetDirectory ->
     runSecurityScans(infrapool,
-        image: "registry.tld/conjur-action:${sourceVersion}-\$(git_commit)}",
+        image: "registry.tld/conjur-action:${sourceVersion}-${git_commit(infrapool)}}",
         buildMode: params.MODE,
         branch: env.BRANCH_NAME,
         arch: 'linux/amd64'
@@ -32,7 +32,7 @@ if (params.MODE == "PROMOTE") {
     infrapool.agentSh """
           source ./bin/build_utils
           ./bin/publish_container_images --promote --pull \
-            --source ${sourceVersion}-\$(git_commit) \
+            --source ${sourceVersion}-${git_commit(infrapool)} \
             --target ${targetVersion}
         """
     sh 'git config --global --add safe.directory "$(pwd)"'
@@ -278,9 +278,19 @@ pipeline {
   }
 }
 
+
 def containerImageWithTag(infrapool) {
   infrapool.agentSh(
     returnStdout: true,
     script: 'source ./bin/build_utils && echo "conjur-action:$(project_version_with_commit)"'
   )
 }
+
+def git_commit(infrapool) {
+  infrapool.agentSh(
+    returnStdout: true,
+    script: 'source ./bin/build_utils && echo "$(git_commit)"'
+  )
+}
+
+
