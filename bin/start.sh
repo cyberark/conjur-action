@@ -156,7 +156,7 @@ function load_container_image_into_act() {
   if [ -n "$CONTAINER_IMAGE_TAR" ]; then
     docker cp "$CONTAINER_IMAGE_TAR" act_container:/tmp/
     # docker compose "${compose_args[@]}" exec -T act bash -c "docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR")"
-    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:$(project_semantic_version)"
+    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:2.1.0"
   fi
 }
 
