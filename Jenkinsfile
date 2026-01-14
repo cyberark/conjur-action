@@ -14,7 +14,7 @@ properties([
 if (params.MODE == "PROMOTE") {
   release.promote(params.VERSION_TO_PROMOTE) { infrapool, sourceVersion, targetVersion, assetDirectory ->
     runSecurityScans(infrapool,
-        image: "registry.tld/conjur-action:${sourceVersion}-${git_commit(infrapool)}}",
+        image: "registry.tld/conjur-action:${sourceVersion}-${git_commit(infrapool)}",
         buildMode: params.MODE,
         branch: env.BRANCH_NAME,
         arch: 'linux/amd64'
