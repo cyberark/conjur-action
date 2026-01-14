@@ -40,7 +40,7 @@ function main() {
 
     echo "Release build completed"
 
-    docker save -o "conjur-action:${VERSION}.tar" "${CONTAINER_IMAGE_AND_TAG}"
+    docker save -o "conjur-action-${VERSION}.tar" "${CONTAINER_IMAGE_AND_TAG}"
 }
 
 main "$@"

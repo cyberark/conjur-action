@@ -147,11 +147,9 @@ function load_container_image_into_act() {
   if [ -n "$compose_file" ]; then
     compose_args=(-f "$compose_file")
   fi
-  echo $(ls -t conjur-action*.tar)
-  echo $(pwd)
-  echo $(ls -l ..)
+
   # Copy and load the container image tar file created by build_release into the act container
-  CONTAINER_IMAGE_TAR=$(ls -t ../conjur-action*.tar 2>/dev/null | head -1)
+  CONTAINER_IMAGE_TAR=$(ls -t ../conjur-action-*.tar 2>/dev/null | head -1)
   echo "$CONTAINER_IMAGE_TAR"
   if [ -n "$CONTAINER_IMAGE_TAR" ]; then
     docker cp "$CONTAINER_IMAGE_TAR" act_container:/tmp/

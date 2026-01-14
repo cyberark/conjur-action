@@ -265,7 +265,7 @@ pipeline {
             // Publish release artifacts to all the appropriate locations
             // Copy any artifacts to assetDirectory to attach them to the Github release
             infrapool.agentSh "cp conjur-action-*.tar.gz  ${assetDirectory}"
-            infrapool.agentSh "cp conjur-action:*.tar  ${assetDirectory}"
+            infrapool.agentSh "cp conjur-action-*.tar  ${assetDirectory}"
           }
         }
       }
