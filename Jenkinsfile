@@ -31,9 +31,7 @@ if (params.MODE == "PROMOTE") {
     // NOTE: the use of --pull to ensure source images are pulled from internal registry
     infrapool.agentSh """
           source ./bin/build_utils
-          ./bin/publish_container_images --promote --pull \
-            --source ${sourceVersion}-${git_commit(infrapool)} \
-            --target ${targetVersion}
+          ./bin/publish_container_images --promote --pull --source ${sourceVersion}-${git_commit(infrapool)} --target ${targetVersion}
         """
     sh 'git config --global --add safe.directory "$(pwd)"'
   }
