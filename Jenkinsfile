@@ -29,7 +29,7 @@ if (params.MODE == "PROMOTE") {
 
     echo "[DEBUG] Publishing to DockerHub"
     // NOTE: the use of --pull to ensure source images are pulled from internal registry
-    infrapool.agentSh "./bin/publish_container_images --promote --pull --source ${sourceVersion}-${git_commit(infrapool)} --target ${targetVersion}"
+    infrapool.agentSh "./bin/publish_container_images --promote --pull --target ${targetVersion} --source ${sourceVersion}-${git_commit(infrapool)}"
     
     sh 'git config --global --add safe.directory "$(pwd)"'
   }
