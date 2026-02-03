@@ -23,7 +23,7 @@ and trusted to use with Conjur Open Source**. For more detailed information on o
 ### Prerequisite for running github runner on VM.
 1. Install docker (Docker must be install as not root user) --- for Linux OS
  * Modify Sudoers File (vi /etc/sudoers)
-   ```yaml 
+   ```yaml
    runner ALL=(ALL) ALL
    ```
  * Run command to create group and add user.
@@ -34,7 +34,7 @@ and trusted to use with Conjur Open Source**. For more detailed information on o
    su - ${USER}
    id -nG
    ```
- * Step to install docker 
+ * Step to install docker
    ```yaml
    sudo apt update
    sudo apt install apt-transport-https ca-certificates curl software-properties-common
@@ -58,7 +58,7 @@ and trusted to use with Conjur Open Source**. For more detailed information on o
  * Need conujr up and running state.
  * Need to Enable the authenticators for JWT authentication.
       <img src="images/authentication_enable.png" width="600" height="400">
-   
+
 ## Host Identity
 ### API Key Based Authentication configuration for .github/workflows .yml file
 
@@ -99,7 +99,9 @@ jobs:
 * `authn_token_file` - this is the file path for the Conjur auth token.
 
 #### Not required
+
 * `authn_id` - this is the ID of Authn-JWT at Conjur
+* `audience` - does not apply here
 
 ### JWT Authentication configuration for .github/workflows .yml file
 
@@ -140,13 +142,15 @@ jobs:
 * `certificate` - if using a self-signed certificate, provide the contents for validated SSL.
 
 #### Not required
-* `host_id` - this is the Host ID granted to your application by Conjur when created via policy. e.g. `host/db/github_action`
+
+* `host_id` - this is the Host ID granted to your application by Conjur when created via policy. e.g. `host/db/github_action`. Use this input if you configured the JWT authenticator without the `token-app-property` variable.
 * `api_key` - this is the API key associated with your Host ID declared previously.
 * `authn_token_file` - this is the file path for the Conjur auth token.
+* `audience` - add a custom `aud` claim value to the JWT.
 
-### Conjur OSS or Enterprise Setup 
+### Conjur OSS or Enterprise Setup
 
-JWT Authenticator is required at Conjur server.  You may wish to refer to [official doc](https://docs.cyberark.com/Product-Doc/OnlineHelp/AAM-DAP/Latest/en/Content/Operations/Services/cjr-authn-jwt.htm?tocpath=Integrations%7CJWT%20Authenticator%7C_____0) 
+JWT Authenticator is required at Conjur server.  You may wish to refer to [official doc](https://docs.cyberark.com/Product-Doc/OnlineHelp/AAM-DAP/Latest/en/Content/Operations/Services/cjr-authn-jwt.htm?tocpath=Integrations%7CJWT%20Authenticator%7C_____0)
 
 The sample policy below validates GitHub repository & workflow
 
@@ -189,7 +193,7 @@ The sample policy below validates GitHub repository & workflow
       #"issuer" for GitHub Actions: https://token.actions.githubusercontent.com
       - !variable
         id: issuer
-        
+
       #In this example, "enforced-claims" is set to "workflow,repository"
       #Please refer to README.md for detailed policy and commands
       - !variable
@@ -225,7 +229,7 @@ The sample policy below validates GitHub repository & workflow
  - Load the policy into root:
   ```
     conjur policy load -f /path/to/file/github-authn-jwt.yml -b root
-  ``` 
+  ```
 
 * Populate the policy variables
 
@@ -282,9 +286,9 @@ conjur variable set -i conjur/authn-jwt/github/identity-path -v "/github-apps"
   - Load the policy into root:
   ```
     conjur policy load -f /path/to/file/authn-jwt-secret-variables.yml -b root
-  ``` 
+  ```
 
-* Set the secret variable   
+* Set the secret variable
      a. Generate a secret
 
      Generate a value for your application’s secret:
@@ -323,7 +327,7 @@ Create a policy for the host:
   id: <host name>
   annotations:
     authn/api-key: true
-```    
+```
 Save the policy as myapp-host.yaml.
 
 Load the policy file into the data policy branch:
