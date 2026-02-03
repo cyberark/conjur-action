@@ -49,7 +49,7 @@ create_pem() {
 
 handle_git_jwt() {
     ## Handle JWT Token epoch time sync
-    
+
     # Grab JWT Token
     local jwt_token=$1
     # Parse payload body
@@ -76,7 +76,7 @@ handle_git_jwt() {
 
     else
         echo "::debug unhandled problem"
-        exit 1 
+        exit 1
     fi
     ####
 }
@@ -97,9 +97,15 @@ conjur_authn() {
 	if [[ -n "$INPUT_AUTHN_ID" ]]; then
 
 		echo "::debug Authenticate via Authn-JWT"
+
+        if [[ -n "$INPUT_AUDIENCE" ]]; then
+            echo "::debug Adding custom audience"
+            ACTIONS_ID_TOKEN_REQUEST_URL="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${INPUT_AUDIENCE}"
+        fi
+
         JWT_TOKEN=$( curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
         handle_git_jwt "$JWT_TOKEN"
-        
+
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Authenticating with certificate"
             token=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" --request POST "$INPUT_URL/authn-jwt/$INPUT_AUTHN_ID/$INPUT_ACCOUNT/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
@@ -150,7 +156,7 @@ set_secrets() {
             envVar=${SPLITSECRET[$lastIndex]^^}
             secretId=$(urlencode "${METADATA[0]}")
         fi
-        
+
         if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Retrieving secret with certificate"
             secretVal=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" -H "Authorization: Token token=\"$token\"" --header "x-cybr-telemetry: $encoded" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
@@ -169,7 +175,7 @@ set_secrets() {
         echo ::add-mask::"${secretVal}" # Masks the value in all logs & output
         echo "${envVar}=${secretVal}" >> "${GITHUB_ENV}" # Set environment variable
     done
-  else 
+  else
    echo "::error::No secret found for retrieval from Conjur Vault"
   fi
 }
