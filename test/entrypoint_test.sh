@@ -228,6 +228,108 @@ test_conjur_authn_jwt_without_certificate() {
   assertContains "$result" "::debug Authenticate via Authn-JWT"
 }
 
+test_conjur_authn_jwt_with_custom_audience() {
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  export INPUT_AUDIENCE="my conjur audience"
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  local url_capture_file
+  url_capture_file=$(mktemp)
+  export URL_CAPTURE_FILE="$url_capture_file"
+
+  curl() {
+    # Match only the OIDC token request (identified by the Bearer request token)
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
+      echo '{"value":"dummy-jwt-token"}'
+    fi
+  }
+
+  result=$(conjur_authn)
+
+  assertContains "$result" "::debug Adding custom audience"
+  assertContains "$(cat "$url_capture_file")" "audience=my%20conjur%20audience"
+  rm -f "$url_capture_file"
+  unset INPUT_AUDIENCE URL_CAPTURE_FILE
+}
+
+test_conjur_authn_jwt_without_audience_does_not_mutate_url() {
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  unset INPUT_AUDIENCE
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  local url_capture_file
+  url_capture_file=$(mktemp)
+  export URL_CAPTURE_FILE="$url_capture_file"
+
+  curl() {
+    # Match only the OIDC token request (identified by the Bearer request token)
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
+      echo '{"value":"dummy-jwt-token"}'
+    fi
+  }
+
+  result=$(conjur_authn)
+
+  assertContains "$result" "::debug Authenticate via Authn-JWT"
+  local captured
+  captured=$(cat "$url_capture_file")
+  case "$captured" in
+    *audience*) fail "URL must not contain audience param when INPUT_AUDIENCE is unset" ;;
+  esac
+  rm -f "$url_capture_file"
+}
+
+test_conjur_authn_jwt_with_empty_audience_does_not_mutate_url() {
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  export INPUT_AUDIENCE=""
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  local url_capture_file
+  url_capture_file=$(mktemp)
+  export URL_CAPTURE_FILE="$url_capture_file"
+
+  curl() {
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
+      echo '{"value":"dummy-jwt-token"}'
+    fi
+  }
+
+  result=$(conjur_authn)
+
+  assertContains "$result" "::debug Authenticate via Authn-JWT"
+  local captured
+  captured=$(cat "$url_capture_file")
+  case "$captured" in
+    *audience*) fail "URL must not contain audience param when INPUT_AUDIENCE is empty" ;;
+  esac
+  rm -f "$url_capture_file"
+  unset INPUT_AUDIENCE URL_CAPTURE_FILE
+}
+
 # Test 'conjur_authn' function for api_key
 test_conjur_authn_api_key() {
   INPUT_AUTHN_ID=""

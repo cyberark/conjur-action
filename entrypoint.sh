@@ -98,12 +98,13 @@ conjur_authn() {
 
 		echo "::debug Authenticate via Authn-JWT"
 
+        local token_url="$ACTIONS_ID_TOKEN_REQUEST_URL"
         if [[ -n "$INPUT_AUDIENCE" ]]; then
             echo "::debug Adding custom audience"
-            ACTIONS_ID_TOKEN_REQUEST_URL="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${INPUT_AUDIENCE}"
+            token_url="${token_url}&audience=$(urlencode "${INPUT_AUDIENCE}")"
         fi
-
-        JWT_TOKEN=$( curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
+        
+        JWT_TOKEN=$(curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$token_url" | jq -r .value)
         handle_git_jwt "$JWT_TOKEN"
 
         REST_API_BASE_URI="${INPUT_URL}/authn-jwt/${INPUT_AUTHN_ID}/${INPUT_ACCOUNT}/authenticate"
