@@ -330,6 +330,147 @@ test_conjur_authn_jwt_with_empty_audience_does_not_mutate_url() {
   unset INPUT_AUDIENCE URL_CAPTURE_FILE
 }
 
+test_conjur_authn_jwt_with_host_id() {
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  export INPUT_HOST_ID="host/my-app"
+  unset INPUT_AUDIENCE
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  local url_capture_file
+  url_capture_file=$(mktemp)
+  export URL_CAPTURE_FILE="$url_capture_file"
+
+  curl() {
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      echo '{"value":"dummy-jwt-token"}'
+    elif [[ "$*" == *"authenticate"* ]]; then
+      printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
+      echo "dummy-token"
+    fi
+  }
+
+  result=$(conjur_authn)
+
+  assertContains "$result" "::debug Authenticate using Host ID"
+  local captured
+  captured=$(cat "$url_capture_file")
+  assertContains "$captured" "authn-jwt/dummy-authn-id/dummy-account/host%2Fmy-app/authenticate"
+  rm -f "$url_capture_file"
+  unset INPUT_HOST_ID URL_CAPTURE_FILE
+}
+
+test_conjur_authn_jwt_without_host_id_uses_base_url() {
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  unset INPUT_HOST_ID
+  unset INPUT_AUDIENCE
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  local url_capture_file
+  url_capture_file=$(mktemp)
+  export URL_CAPTURE_FILE="$url_capture_file"
+
+  curl() {
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      echo '{"value":"dummy-jwt-token"}'
+    elif [[ "$*" == *"authenticate"* ]]; then
+      printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
+      echo "dummy-token"
+    fi
+  }
+
+  result=$(conjur_authn)
+
+  local captured
+  captured=$(cat "$url_capture_file")
+  assertContains "$captured" "authn-jwt/dummy-authn-id/dummy-account/authenticate"
+  # Ensure no host segment appears between account and authenticate
+  case "$captured" in
+    *"dummy-account/host"*) fail "URL must not contain a host segment when INPUT_HOST_ID is unset" ;;
+  esac
+  rm -f "$url_capture_file"
+  unset URL_CAPTURE_FILE
+}
+
+test_conjur_authn_jwt_with_certificate() {
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  unset INPUT_HOST_ID
+  unset INPUT_AUDIENCE
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE="dummy-cert"
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  curl() {
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      echo '{"value":"dummy-jwt-token"}'
+    elif [[ "$*" == *"authenticate"* ]]; then
+      echo "dummy-token"
+    fi
+  }
+
+  result=$(conjur_authn)
+
+  assertContains "$result" "::debug Authenticating with certificate"
+}
+
+test_conjur_authn_jwt_with_audience_and_host_id() {
+  export INPUT_AUTHN_ID="dummy-authn-id"
+  export INPUT_HOST_ID="host/my-app"
+  export INPUT_AUDIENCE="my conjur audience"
+  export ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
+  export ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+  export INPUT_URL="http://dummy.conjur"
+  export INPUT_ACCOUNT="dummy-account"
+  export INPUT_CERTIFICATE=""
+
+  handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
+  telemetry_header() { encoded="dummy-telemetry"; }
+
+  local token_url_file authn_url_file
+  token_url_file=$(mktemp)
+  authn_url_file=$(mktemp)
+  export TOKEN_URL_FILE="$token_url_file"
+  export AUTHN_URL_FILE="$authn_url_file"
+
+  curl() {
+    if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      printf '%s\n' "$*" >> "$TOKEN_URL_FILE"
+      echo '{"value":"dummy-jwt-token"}'
+    elif [[ "$*" == *"authenticate"* ]]; then
+      printf '%s\n' "$*" >> "$AUTHN_URL_FILE"
+      echo "dummy-token"
+    fi
+  }
+
+  result=$(conjur_authn)
+
+  # Audience applied to the OIDC token request
+  assertContains "$(cat "$token_url_file")" "audience=my%20conjur%20audience"
+  # Host ID applied to the Conjur authenticate URL
+  assertContains "$(cat "$authn_url_file")" "authn-jwt/dummy-authn-id/dummy-account/host%2Fmy-app/authenticate"
+
+  rm -f "$token_url_file" "$authn_url_file"
+  unset INPUT_HOST_ID INPUT_AUDIENCE TOKEN_URL_FILE AUTHN_URL_FILE
+}
+
 # Test 'conjur_authn' function for api_key
 test_conjur_authn_api_key() {
   INPUT_AUTHN_ID=""
