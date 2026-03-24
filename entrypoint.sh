@@ -114,7 +114,7 @@ conjur_authn() {
             hostId=$(urlencode "$INPUT_HOST_ID")
             REST_API_BASE_URI="${INPUT_URL}/authn-jwt/${INPUT_AUTHN_ID}/${INPUT_ACCOUNT}/${hostId}/authenticate"
         fi
-
+        
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Authenticating with certificate"
             token=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" --request POST "$REST_API_BASE_URI" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
@@ -138,7 +138,7 @@ conjur_authn() {
             echo "::debug Authenticating without certificate"
 			token=$(curl --request POST --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64")
 		fi
-	fi
+    fi
 }
 
 array_secrets() {
@@ -189,4 +189,6 @@ set_secrets() {
   fi
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

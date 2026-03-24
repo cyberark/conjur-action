@@ -1,9 +1,7 @@
-
 #!/bin/bash
 
 # Load the entrypoint.sh script
-script=$(awk '!/^[[:space:]]*main(\(\))?[[:space:]]*("\$@")?[[:space:]]*$/' ./entrypoint.sh)
-eval "$script"
+source ./entrypoint.sh
 
 assertContains() {
   local string="$1"
