@@ -142,7 +142,7 @@ conjur_authn() {
 }
 
 array_secrets() {
-    IFS=';'
+    local IFS=';'
     read -ra SECRETS <<< "$INPUT_SECRETS" # [0]=db/sqlusername | sql_username [1]=db/sql_password
 }
 
@@ -150,7 +150,7 @@ set_secrets() {
   if [[ ${SECRETS[@]} ]]; then
     telemetry_header
     for secret in "${SECRETS[@]}"; do
-        IFS='|'
+        local IFS='|'
         read -ra METADATA <<< "$secret" # [0]=db/sqlusername [1]=sql_username
 
         if [[ "${#METADATA[@]}" == 2 ]]; then
@@ -158,7 +158,7 @@ set_secrets() {
             envVar=${METADATA[1]^^}
         else
             secretId=${METADATA[0]}
-            IFS='/'
+            local IFS='/'
             read -ra SPLITSECRET <<< "$secretId" # [0]=db [1]=sql_password
             arrLength=${#SPLITSECRET[@]} # Get array length
             lastIndex=$((arrLength-1)) # Subtract one for last index
