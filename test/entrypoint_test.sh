@@ -332,11 +332,4 @@ test_set_secrets() {
 }
 
 # Run all tests
-# Disable shunit2 LINENO capture: bashcov zeroes LINENO during instrumentation,
-# causing the _SHUNIT_LINENO_ eval to emit an empty command that bash rejects.
-_SHUNIT_LINENO_=''
-# Force shunit2 to use plain `echo` instead of `echo -e`: bashcov interferes
-# with bash's echo builtin detection, leaving __SHUNIT_CMD_ECHO_ESC='echo -e'
-# which then fails with "echo -e: command not found".
-SHUNIT_COLOR='none'
 . /usr/bin/shunit2
