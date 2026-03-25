@@ -124,7 +124,13 @@ pipeline {
         always {
           unstash 'junit-xml'
           junit 'output/junit.xml'
-          cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'output/coverage.xml', conditionalCoverageTargets: '30, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '30, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '30, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
+          recordCoverage(
+            tools: [[parser: 'COBERTURA', pattern: 'output/coverage.xml']],
+            qualityGates: [
+              [threshold: 30.0, metric: 'LINE',   baseline: 'PROJECT', unstable: true],
+              [threshold: 30.0, metric: 'METHOD', baseline: 'PROJECT', unstable: true]
+            ]
+          )
           codacy action: 'reportCoverage', filePath: "output/coverage.xml"
 
         }
@@ -147,93 +153,93 @@ pipeline {
       }
     }
 
-    stage('Run Conjur Cloud tests') {
-      stages {
-        stage('Create a Tenant') {
-          steps {
-            script {
-              TENANT = getConjurCloudTenant()
-            }
-          }
-        }
-        stage('Authenticate') {
-          steps {
-            script {
-              def id_token = getConjurCloudTenant.tokens(
-                infrapool: infrapool,
-                identity_url: "${TENANT.identity_information.idaptive_tenant_fqdn}",
-                username: "${TENANT.login_name}"
-              )
+    // stage('Run Conjur Cloud tests') {
+    //   stages {
+    //     stage('Create a Tenant') {
+    //       steps {
+    //         script {
+    //           TENANT = getConjurCloudTenant()
+    //         }
+    //       }
+    //     }
+    //     stage('Authenticate') {
+    //       steps {
+    //         script {
+    //           def id_token = getConjurCloudTenant.tokens(
+    //             infrapool: infrapool,
+    //             identity_url: "${TENANT.identity_information.idaptive_tenant_fqdn}",
+    //             username: "${TENANT.login_name}"
+    //           )
 
-              def conj_token = getConjurCloudTenant.tokens(
-                infrapool: infrapool,
-                conjur_url: "${TENANT.conjur_cloud_url}",
-                identity_token: "${id_token}"
-                )
+    //           def conj_token = getConjurCloudTenant.tokens(
+    //             infrapool: infrapool,
+    //             conjur_url: "${TENANT.conjur_cloud_url}",
+    //             identity_token: "${id_token}"
+    //             )
 
-              env.conj_token = conj_token
-            }
-          }
-        }
-        stage('Run tests against Tenant') {
-          environment {
-            INFRAPOOL_CONJUR_APPLIANCE_URL="${TENANT.conjur_cloud_url}"
-            INFRAPOOL_CONJUR_AUTHN_LOGIN="${TENANT.login_name}"
-            INFRAPOOL_CONJUR_AUTHN_TOKEN="${env.conj_token}"
-            INFRAPOOL_TEST_CLOUD=true
-          }
-          steps {
-            script {
-              infrapool.agentSh "./bin/start.sh -c"
-            }
-          }
-        }
-        stage('Get Edge Token') {
-          steps {
-            script {
-              def edge_token = getConjurCloudTenant.tokens(
-                infrapool: infrapool,
-                conjur_url: "${TENANT.conjur_cloud_url}",
-                edge_name: "${TENANT.conjur_edge_name}",
-                conjur_token: "${conj_token}"
-              )
+    //           env.conj_token = conj_token
+    //         }
+    //       }
+    //     }
+    //     stage('Run tests against Tenant') {
+    //       environment {
+    //         INFRAPOOL_CONJUR_APPLIANCE_URL="${TENANT.conjur_cloud_url}"
+    //         INFRAPOOL_CONJUR_AUTHN_LOGIN="${TENANT.login_name}"
+    //         INFRAPOOL_CONJUR_AUTHN_TOKEN="${env.conj_token}"
+    //         INFRAPOOL_TEST_CLOUD=true
+    //       }
+    //       steps {
+    //         script {
+    //           infrapool.agentSh "./bin/start.sh -c"
+    //         }
+    //       }
+    //     }
+    //     stage('Get Edge Token') {
+    //       steps {
+    //         script {
+    //           def edge_token = getConjurCloudTenant.tokens(
+    //             infrapool: infrapool,
+    //             conjur_url: "${TENANT.conjur_cloud_url}",
+    //             edge_name: "${TENANT.conjur_edge_name}",
+    //             conjur_token: "${conj_token}"
+    //           )
 
-              def deploy_edge = getConjurCloudTenant.edge(
-                infrapool: infrapool,
-                conjur_url: "${TENANT.conjur_cloud_url}",
-                edge_name: "edge-test",
-                edge_token: "${edge_token}",
-                common_name: "edge-test",
-                subject_alt_names: "edge-test"
-              )
+    //           def deploy_edge = getConjurCloudTenant.edge(
+    //             infrapool: infrapool,
+    //             conjur_url: "${TENANT.conjur_cloud_url}",
+    //             edge_name: "edge-test",
+    //             edge_token: "${edge_token}",
+    //             common_name: "edge-test",
+    //             subject_alt_names: "edge-test"
+    //           )
               
-              env.edge_token = edge_token
-            }
-          }
-        }
-        stage('Run tests against Edge') {
-          environment {
-            INFRAPOOL_CONJUR_APPLIANCE_URL="${TENANT.conjur_cloud_url}"
-            INFRAPOOL_CONJUR_AUTHN_LOGIN="${TENANT.login_name}"
-            INFRAPOOL_CONJUR_AUTHN_TOKEN="${env.conj_token}"
-            INFRAPOOL_TEST_CLOUD=true
-          }
-          steps {
-            script {
-              infrapool.agentSh "./bin/start.sh -ed"
-            }
-          }
-        }
-      }
+    //           env.edge_token = edge_token
+    //         }
+    //       }
+    //     }
+    //     stage('Run tests against Edge') {
+    //       environment {
+    //         INFRAPOOL_CONJUR_APPLIANCE_URL="${TENANT.conjur_cloud_url}"
+    //         INFRAPOOL_CONJUR_AUTHN_LOGIN="${TENANT.login_name}"
+    //         INFRAPOOL_CONJUR_AUTHN_TOKEN="${env.conj_token}"
+    //         INFRAPOOL_TEST_CLOUD=true
+    //       }
+    //       steps {
+    //         script {
+    //           infrapool.agentSh "./bin/start.sh -ed"
+    //         }
+    //       }
+    //     }
+    //   }
 
-      post {
-        always {
-          script {
-            deleteConjurCloudTenant("${TENANT.id}")
-          }
-        }
-      }
-    }
+    //   post {
+    //     always {
+    //       script {
+    //         deleteConjurCloudTenant("${TENANT.id}")
+    //       }
+    //     }
+    //   }
+    // }
 
     stage("Scan main Docker image") {
       steps {

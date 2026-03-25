@@ -49,7 +49,7 @@ create_pem() {
 
 handle_git_jwt() {
     ## Handle JWT Token epoch time sync
-    
+
     # Grab JWT Token
     local jwt_token=$1
     # Parse payload body
@@ -76,7 +76,7 @@ handle_git_jwt() {
 
     else
         echo "::debug unhandled problem"
-        exit 1 
+        exit 1
     fi
     ####
 }
@@ -97,15 +97,30 @@ conjur_authn() {
 	if [[ -n "$INPUT_AUTHN_ID" ]]; then
 
 		echo "::debug Authenticate via Authn-JWT"
-        JWT_TOKEN=$( curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value )
+
+        local token_url="$ACTIONS_ID_TOKEN_REQUEST_URL"
+        if [[ -n "$INPUT_AUDIENCE" ]]; then
+            echo "::debug Adding custom audience"
+            token_url="${token_url}&audience=$(urlencode "${INPUT_AUDIENCE}")"
+        fi
+        
+        JWT_TOKEN=$(curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$token_url" | jq -r .value)
         handle_git_jwt "$JWT_TOKEN"
+
+        REST_API_BASE_URI="${INPUT_URL}/authn-jwt/${INPUT_AUTHN_ID}/${INPUT_ACCOUNT}/authenticate"
+
+        if [[ -n "$INPUT_HOST_ID" ]]; then
+            echo "::debug Authenticate using Host ID"
+            hostId=$(urlencode "$INPUT_HOST_ID")
+            REST_API_BASE_URI="${INPUT_URL}/authn-jwt/${INPUT_AUTHN_ID}/${INPUT_ACCOUNT}/${hostId}/authenticate"
+        fi
         
 		if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Authenticating with certificate"
-            token=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" --request POST "$INPUT_URL/authn-jwt/$INPUT_AUTHN_ID/$INPUT_ACCOUNT/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
+            token=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" --request POST "$REST_API_BASE_URI" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
 		else
             echo "::debug Authenticating without certificate"
-			token=$(curl --request POST "$INPUT_URL/authn-jwt/$INPUT_AUTHN_ID/$INPUT_ACCOUNT/authenticate" --header 'Content-Type: application/x-www-form-urlencoded' --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
+			token=$(curl --request POST "$REST_API_BASE_URI" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
 		fi
 
 	else
@@ -123,11 +138,11 @@ conjur_authn() {
             echo "::debug Authenticating without certificate"
 			token=$(curl --request POST --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64")
 		fi
-	fi
+    fi
 }
 
 array_secrets() {
-    IFS=';'
+    local IFS=';'
     read -ra SECRETS <<< "$INPUT_SECRETS" # [0]=db/sqlusername | sql_username [1]=db/sql_password
 }
 
@@ -135,7 +150,7 @@ set_secrets() {
   if [[ ${SECRETS[@]} ]]; then
     telemetry_header
     for secret in "${SECRETS[@]}"; do
-        IFS='|'
+        local IFS='|'
         read -ra METADATA <<< "$secret" # [0]=db/sqlusername [1]=sql_username
 
         if [[ "${#METADATA[@]}" == 2 ]]; then
@@ -143,14 +158,14 @@ set_secrets() {
             envVar=${METADATA[1]^^}
         else
             secretId=${METADATA[0]}
-            IFS='/'
+            local IFS='/'
             read -ra SPLITSECRET <<< "$secretId" # [0]=db [1]=sql_password
             arrLength=${#SPLITSECRET[@]} # Get array length
             lastIndex=$((arrLength-1)) # Subtract one for last index
             envVar=${SPLITSECRET[$lastIndex]^^}
             secretId=$(urlencode "${METADATA[0]}")
         fi
-        
+
         if [[ -n "$INPUT_CERTIFICATE" ]]; then
             echo "::debug Retrieving secret with certificate"
             secretVal=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" -H "Authorization: Token token=\"$token\"" --header "x-cybr-telemetry: $encoded" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
@@ -169,9 +184,11 @@ set_secrets() {
         echo ::add-mask::"${secretVal}" # Masks the value in all logs & output
         echo "${envVar}=${secretVal}" >> "${GITHUB_ENV}" # Set environment variable
     done
-  else 
+  else
    echo "::error::No secret found for retrieval from Conjur Vault"
   fi
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

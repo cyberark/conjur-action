@@ -26,5 +26,6 @@ RUN gem install --no-document \
     simplecov:0.22.0 \
     simplecov-cobertura:2.1.0
 
+USER 1001
 WORKDIR /conjur-action
 COPY . .
