@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0] - 2026-05-26
-- Added an new parameter in the action config - allow_insecure_connections with default value FALSE
-- Changed we now block http requests when allow_insecure_connections is FALSE. When allow_insecure_connections we print a warrning.
+
+### Breaking
+- For setups connecting to Conjur instance over plain HTTP without `allow_insecure_connections` set to true, the action will fail.
+
+### Added
+- Added an new parameter in the action config - `allow_insecure_connections` with default value FALSE
+
+### Changed
+- We now block http requests when `allow_insecure_connections` is FALSE. When `allow_insecure_connections` we print a warrning.
 
 ## [2.1.1] - 2026-03-23
 

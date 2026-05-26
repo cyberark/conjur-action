@@ -65,8 +65,15 @@ conjur_curl() {
         cert_args=(--cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem")
     fi
 
+    # Enforce HTTPS unless the caller has explicitly opted into HTTP via
+    # allow_insecure_connections and the URL is actually http://.
+    local tls_args=()
+    if [[ "${INPUT_URL,,}" != http://* || "${INPUT_ALLOW_INSECURE_CONNECTIONS,,}" != "true" ]]; then
+        tls_args=(--proto '=https' --proto-redir '=https' --ssl-reqd)
+    fi
+
     local response rc
-    response=$(curl -sS --show-error --write-out $'\n%{http_code}' "${cert_args[@]}" "$@")
+    response=$(curl -sS --show-error --write-out $'\n%{http_code}' "${cert_args[@]}" "${tls_args[@]}" "$@")
     rc=$?
 
     if (( rc != 0 )); then
@@ -158,14 +165,15 @@ conjur_authn() {
         fi
         
         debug_cert_mode "Authenticating"
-        if ! conjur_curl --request POST "$REST_API_BASE_URI" \
+        conjur_curl --request POST "$REST_API_BASE_URI" \
                 --header "Content-Type: application/x-www-form-urlencoded" \
                 --header "x-cybr-telemetry: $encoded" \
                 --header "Accept-Encoding: base64" \
-                --data-urlencode "jwt=$JWT_TOKEN"; then
-            echo "::error::Conjur authentication request failed (curl exit $?)"
+                --data-urlencode "jwt=$JWT_TOKEN" || {
+            local rc=$?
+            echo "::error::Conjur authentication request failed (curl exit $rc)"
             exit 1
-        fi
+        }
         if [[ "$http_status" != "200" ]]; then
             echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
             exit 1
@@ -179,14 +187,15 @@ conjur_authn() {
         hostId=$(urlencode "$INPUT_HOST_ID")
 
         debug_cert_mode "Authenticating"
-        if ! conjur_curl --request POST --data "$INPUT_API_KEY" \
+        conjur_curl --request POST --data "$INPUT_API_KEY" \
                 "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" \
                 --header "Content-Type: application/x-www-form-urlencoded" \
                 --header "x-cybr-telemetry: $encoded" \
-                --header "Accept-Encoding: base64"; then
-            echo "::error::Conjur authentication request failed (curl exit $?)"
+                --header "Accept-Encoding: base64" || {
+            local rc=$?
+            echo "::error::Conjur authentication request failed (curl exit $rc)"
             exit 1
-        fi
+        }
         if [[ "$http_status" != "200" ]]; then
             echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
             exit 1
@@ -221,16 +230,17 @@ set_secrets() {
         fi
 
         debug_cert_mode "Retrieving secret"
-        if ! conjur_curl -H "Authorization: Token token=\"$token\"" \
+        conjur_curl -H "Authorization: Token token=\"$token\"" \
                 --header "x-cybr-telemetry: $encoded" \
-                "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId"; then
-            echo "::error::Secret retrieval request failed (curl exit $?)"
+                "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId" || {
+            local rc=$?
+            echo "::error::Secret retrieval request failed (curl exit $rc)"
             exit 1
-        fi
+        }
         secretVal=$http_body
 
         if [[ "$http_status" != "200" ]]; then
-            echo "::error::Failed to retrieve secret '$secretId' (HTTP $http_status): $secretVal"
+            echo "::error::Failed to retrieve secret '$secretId' (HTTP $http_status)."
             exit 1
         fi
         echo ::add-mask::"${secretVal}" # Masks the value in all logs & output

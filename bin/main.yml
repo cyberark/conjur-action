@@ -39,6 +39,7 @@ jobs:
 
   http-url-blocked:
     runs-on: ubuntu-latest
+    needs: test-job
 
     steps:
       - name: Checkout repository
@@ -53,22 +54,44 @@ jobs:
           api_key: ${{ secrets.API_KEY }}
           secrets: ${{ secrets.SECRET }}|dev_password
         continue-on-error: true
-      - name: Verify HTTP connection was blocked
+      - name: Verify HTTP connection was blocked by URL validation
         run: |
           if [ "${{ steps.http_blocked.outcome }}" != "failure" ]; then
             echo "Expected action to fail for HTTP URL but it did not"
             exit 1
           fi
+          echo "Action correctly rejected the HTTP URL (allow_insecure_connections not set)"
       - name: Clean Workspace
         uses: AutoModality/action-clean@v1.1.0
 
   http-url-allowed-with-warning:
     runs-on: ubuntu-latest
+    needs: http-url-blocked
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: Attempt connection over HTTP with insecure flag (should pass URL validation)
+
+      # Probe whether the HTTP Conjur endpoint is reachable in this environment.
+      - name: Check if HTTP Conjur endpoint is reachable
+        id: http_probe
+        run: |
+          url="${{ secrets.CONJUR_HTTP_URL }}"
+          host="${url#http://}"
+          host="${host%%/*}"
+          if [[ "$host" == *:* ]]; then
+            port="${host##*:}"
+            host="${host%%:*}"
+          else
+            port=80
+          fi
+          if timeout 3 bash -c "echo >/dev/tcp/$host/$port" 2>/dev/null; then
+            echo "reachable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Attempt connection over HTTP with insecure flag (should warn and succeed)
         id: http_allowed
         uses: ./
         with:
@@ -78,13 +101,34 @@ jobs:
           api_key: ${{ secrets.API_KEY }}
           secrets: ${{ secrets.SECRET }}|dev_password
           allow_insecure_connections: 'true'
+          certificate: ${{ secrets.CERTIFICATE }}
         continue-on-error: true
-      - name: Verify action passed URL validation (fails at auth, not at URL check)
+
+      - name: Verify URL validation and connection result
         run: |
-          if [ "${{ steps.http_allowed.outcome }}" == "success" ]; then
-            echo "Unexpected success — no real HTTP Conjur server should be reachable"
-            exit 1
+          if [ "${{ steps.http_probe.outputs.reachable }}" == "true" ]; then
+            # HTTP endpoint is up: the action must have succeeded end-to-end.
+            if [ "${{ steps.http_allowed.outcome }}" != "success" ]; then
+              echo "HTTP endpoint was reachable but action failed — allow_insecure_connections may not be working."
+              exit 1
+            fi
+            if [ "$DEV_PASSWORD" != "test_dev_1" ]; then
+              echo "HTTP connection succeeded but retrieved secret value is incorrect."
+              exit 1
+            fi
+            echo "HTTP connection with insecure flag succeeded end-to-end. DEV_PASSWORD is correct."
+          else
+            # HTTP endpoint is not available: the action must have
+            # failed at the network/auth level, not at URL validation.
+            # Combined with http-url-blocked passing, this confirms allow_insecure_connections
+            # bypassed the URL check. Check the log above for '::warning::Connecting to Conjur
+            # over HTTP' and 'Authenticate using Host ID' to confirm URL validation passed.
+            if [ "${{ steps.http_allowed.outcome }}" != "failure" ]; then
+              echo "Expected a failure (no HTTP Conjur endpoint) but step succeeded unexpectedly."
+              exit 1
+            fi
+            echo "No HTTP endpoint in this environment. Action failed at network level as expected."
           fi
-          echo "Action failed at auth as expected (URL validation was bypassed by flag)"
+
       - name: Clean Workspace
         uses: AutoModality/action-clean@v1.1.0

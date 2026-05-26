@@ -223,7 +223,7 @@ function main() {
 
    cat <<EOF > $(git rev-parse --show-toplevel)/.github/workflows/.secrets
 URL="$CONJUR_APPLIANCE_URL"
-HTTP_URL="$(echo "$CONJUR_APPLIANCE_URL" | sed 's|^https://|http://|')"
+CONJUR_HTTP_URL="$(echo "$CONJUR_APPLIANCE_URL" | sed 's|^https://|http://|')"
 ACCOUNT="$CONJUR_ACCOUNT"
 HOST_ID="$CONJUR_AUTHN_LOGIN"
 API_KEY="$ADMIN_API_KEY"
