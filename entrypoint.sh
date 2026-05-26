@@ -3,7 +3,19 @@
 
 script_dir=$(dirname "$(realpath "$0")")
 
+validate_url() {
+    if [[ "$INPUT_URL" == http://* ]]; then
+        if [[ "${INPUT_ALLOW_INSECURE_CONNECTIONS,,}" == "true" ]]; then
+            echo "::warning::Connecting to Conjur over HTTP is insecure and not recommended for production use."
+        else
+            echo "::error::HTTP connections are not allowed. Use an HTTPS URL or set allow_insecure_connections: 'true' to override."
+            exit 1
+        fi
+    fi
+}
+
 main() {
+    validate_url
     create_pem
     if [[ -z "$INPUT_AUTHN_TOKEN_FILE" ]]; then
         conjur_authn
@@ -45,6 +57,36 @@ urlencode() {
 create_pem() {
     # Create conjur_account.pem for valid SSL
     echo "$INPUT_CERTIFICATE" > /conjur-action/conjur_"$INPUT_ACCOUNT".pem
+}
+
+conjur_curl() {
+    local cert_args=()
+    if [[ -n "$INPUT_CERTIFICATE" ]]; then
+        cert_args=(--cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem")
+    fi
+
+    local response rc
+    response=$(curl -sS --show-error --write-out $'\n%{http_code}' "${cert_args[@]}" "$@")
+    rc=$?
+
+    if (( rc != 0 )); then
+        http_status=""
+        http_body="$response"
+        return $rc
+    fi
+
+    http_status=${response##*$'\n'}
+    http_body=${response%$'\n'*}
+    return 0
+}
+
+debug_cert_mode() {
+    local context=$1
+    if [[ -n "$INPUT_CERTIFICATE" ]]; then
+        echo "::debug ${context} with certificate"
+    else
+        echo "::debug ${context} without certificate"
+    fi
 }
 
 handle_git_jwt() {
@@ -115,29 +157,41 @@ conjur_authn() {
             REST_API_BASE_URI="${INPUT_URL}/authn-jwt/${INPUT_AUTHN_ID}/${INPUT_ACCOUNT}/${hostId}/authenticate"
         fi
         
-		if [[ -n "$INPUT_CERTIFICATE" ]]; then
-            echo "::debug Authenticating with certificate"
-            token=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" --request POST "$REST_API_BASE_URI" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
-		else
-            echo "::debug Authenticating without certificate"
-			token=$(curl --request POST "$REST_API_BASE_URI" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$JWT_TOKEN")
-		fi
+        debug_cert_mode "Authenticating"
+        if ! conjur_curl --request POST "$REST_API_BASE_URI" \
+                --header "Content-Type: application/x-www-form-urlencoded" \
+                --header "x-cybr-telemetry: $encoded" \
+                --header "Accept-Encoding: base64" \
+                --data-urlencode "jwt=$JWT_TOKEN"; then
+            echo "::error::Conjur authentication request failed (curl exit $?)"
+            exit 1
+        fi
+        if [[ "$http_status" != "200" ]]; then
+            echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
+            exit 1
+        fi
+        token=$http_body
 
 	else
-		echo "::debug Authenticate using Host ID & API Key"
+        echo "::debug Authenticate using Host ID & API Key"
 
         # URL-encode Host ID for future use
         hostId=$(urlencode "$INPUT_HOST_ID")
 
-		if [[ -n "$INPUT_CERTIFICATE" ]]; then
-			# Authenticate and receive session token from Conjur - encode Base64
-			echo "::debug Authenticating with certificate"
-            token=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded"  --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64")
-		else
-			# Authenticate and receive session token from Conjur - encode Base64
-            echo "::debug Authenticating without certificate"
-			token=$(curl --request POST --data "$INPUT_API_KEY" "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "x-cybr-telemetry: $encoded" --header "Accept-Encoding: base64")
-		fi
+        debug_cert_mode "Authenticating"
+        if ! conjur_curl --request POST --data "$INPUT_API_KEY" \
+                "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" \
+                --header "Content-Type: application/x-www-form-urlencoded" \
+                --header "x-cybr-telemetry: $encoded" \
+                --header "Accept-Encoding: base64"; then
+            echo "::error::Conjur authentication request failed (curl exit $?)"
+            exit 1
+        fi
+        if [[ "$http_status" != "200" ]]; then
+            echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
+            exit 1
+        fi
+        token=$http_body
     fi
 }
 
@@ -166,20 +220,18 @@ set_secrets() {
             secretId=$(urlencode "${METADATA[0]}")
         fi
 
-        if [[ -n "$INPUT_CERTIFICATE" ]]; then
-            echo "::debug Retrieving secret with certificate"
-            secretVal=$(curl --cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem" -H "Authorization: Token token=\"$token\"" --header "x-cybr-telemetry: $encoded" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
-        else
-            echo "::debug Retrieving secret without certificate"
-            secretVal=$(curl -H "Authorization: Token token=\"$token\"" --header "x-cybr-telemetry: $encoded" "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId")
-        fi
-
-        if [[ "${secretVal}" == "Malformed authorization token" ]]; then
-            echo "::error::Malformed authorization token. Please check your Conjur account, username, and API key. If using authn-jwt, check your Host ID annotations are correct."
+        debug_cert_mode "Retrieving secret"
+        if ! conjur_curl -H "Authorization: Token token=\"$token\"" \
+                --header "x-cybr-telemetry: $encoded" \
+                "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId"; then
+            echo "::error::Secret retrieval request failed (curl exit $?)"
             exit 1
-	elif [[ "${secretVal}" == *"is empty or not found"* ]]; then
-	    echo "::error::${secretVal}"
-	    exit 1
+        fi
+        secretVal=$http_body
+
+        if [[ "$http_status" != "200" ]]; then
+            echo "::error::Failed to retrieve secret '$secretId' (HTTP $http_status): $secretVal"
+            exit 1
         fi
         echo ::add-mask::"${secretVal}" # Masks the value in all logs & output
         echo "${envVar}=${secretVal}" >> "${GITHUB_ENV}" # Set environment variable

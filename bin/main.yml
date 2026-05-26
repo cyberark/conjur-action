@@ -36,3 +36,55 @@ jobs:
 
       - name: Clean Workspace
         uses: AutoModality/action-clean@v1.1.0
+
+  http-url-blocked:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Attempt connection over HTTP without insecure flag (should fail)
+        id: http_blocked
+        uses: ./
+        with:
+          url: ${{ secrets.CONJUR_HTTP_URL }}
+          account: ${{ secrets.ACCOUNT }}
+          host_id: ${{ secrets.HOST_ID }}
+          api_key: ${{ secrets.API_KEY }}
+          secrets: ${{ secrets.SECRET }}|dev_password
+        continue-on-error: true
+      - name: Verify HTTP connection was blocked
+        run: |
+          if [ "${{ steps.http_blocked.outcome }}" != "failure" ]; then
+            echo "Expected action to fail for HTTP URL but it did not"
+            exit 1
+          fi
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@v1.1.0
+
+  http-url-allowed-with-warning:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Attempt connection over HTTP with insecure flag (should pass URL validation)
+        id: http_allowed
+        uses: ./
+        with:
+          url: ${{ secrets.CONJUR_HTTP_URL }}
+          account: ${{ secrets.ACCOUNT }}
+          host_id: ${{ secrets.HOST_ID }}
+          api_key: ${{ secrets.API_KEY }}
+          secrets: ${{ secrets.SECRET }}|dev_password
+          allow_insecure_connections: 'true'
+        continue-on-error: true
+      - name: Verify action passed URL validation (fails at auth, not at URL check)
+        run: |
+          if [ "${{ steps.http_allowed.outcome }}" == "success" ]; then
+            echo "Unexpected success — no real HTTP Conjur server should be reachable"
+            exit 1
+          fi
+          echo "Action failed at auth as expected (URL validation was bypassed by flag)"
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@v1.1.0

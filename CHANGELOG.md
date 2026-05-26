@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-05-26
+- Added an new parameter in the action config - allow_insecure_connections with default value FALSE
+- Changed we now block http requests when allow_insecure_connections is FALSE. When allow_insecure_connections we print a warrning.
+
 ## [2.1.1] - 2026-03-23
 
 ### Fixed
@@ -60,7 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/cyberark/conjur-action/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/cyberark/conjur-action/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/cyberark/conjur-action/compare/v3.0.0...v2.1.1
 [2.1.0]: https://github.com/cyberark/conjur-action/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/cyberark/conjur-action/compare/v2.0.12...v2.1.0
 [2.0.12]: https://github.com/cyberark/conjur-action/compare/v2.0.11...v2.0.12

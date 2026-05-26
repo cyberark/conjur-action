@@ -154,7 +154,7 @@ function load_container_image_into_act() {
   if [ -n "$CONTAINER_IMAGE_TAR" ]; then
     docker cp "$CONTAINER_IMAGE_TAR" act_container:/tmp/
     # docker compose "${compose_args[@]}" exec -T act bash -c "docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR")"
-    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:2.1.1"
+    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:3.0.0"
   fi
 }
 
@@ -223,6 +223,7 @@ function main() {
 
    cat <<EOF > $(git rev-parse --show-toplevel)/.github/workflows/.secrets
 URL="$CONJUR_APPLIANCE_URL"
+HTTP_URL="$(echo "$CONJUR_APPLIANCE_URL" | sed 's|^https://|http://|')"
 ACCOUNT="$CONJUR_ACCOUNT"
 HOST_ID="$CONJUR_AUTHN_LOGIN"
 API_KEY="$ADMIN_API_KEY"

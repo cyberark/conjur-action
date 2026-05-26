@@ -40,9 +40,11 @@ setUp() {
       elif [[ "$*" == *"authenticate"* ]]; then
         [[ -n "${URL_CAPTURE_FILE:-}" ]] && printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
         [[ -n "${AUTHN_URL_FILE:-}" ]] && printf '%s\n' "$*" >> "$AUTHN_URL_FILE"
-        echo "dummy-token"
+        # conjur_curl uses --write-out '\n%{http_code}'; append a 200 status.
+        printf 'dummy-token\n200'
       else
-        echo "fake_secret_value"
+        # conjur_curl uses --write-out '\n%{http_code}'; append a 200 status.
+        printf 'fake_secret_value\n200'
       fi
     }
 }
@@ -314,6 +316,36 @@ test_conjur_authn_api_key_without_certificate() {
   assertContains "should use API key authn" "$result" "::debug Authenticate using Host ID & API Key"
   assertContains "should skip certificate" "$result" "::debug Authenticating without certificate"
   assertNotContains "should not use JWT authn" "$result" "::debug Authenticate via Authn-JWT"
+}
+
+# Test 'validate_url' function
+test_validate_url_https_passes_silently() {
+    INPUT_URL="https://example.com"
+    result=$(validate_url)
+    assertEquals "" "$result"
+}
+
+test_validate_url_http_with_insecure_flag_emits_warning() {
+    INPUT_URL="http://example.com"
+    INPUT_ALLOW_INSECURE_CONNECTIONS="true"
+    result=$(validate_url)
+    assertContains "should emit warning for HTTP with flag" "$result" "::warning::"
+    unset INPUT_ALLOW_INSECURE_CONNECTIONS
+}
+
+test_validate_url_http_without_insecure_flag_exits_with_error() {
+    INPUT_URL="http://example.com"
+    INPUT_ALLOW_INSECURE_CONNECTIONS="false"
+    result=$(validate_url; echo "exit:$?")
+    assertContains "should emit error for HTTP without flag" "$result" "::error::"
+    unset INPUT_ALLOW_INSECURE_CONNECTIONS
+}
+
+test_validate_url_http_with_unset_insecure_flag_exits_with_error() {
+    INPUT_URL="http://example.com"
+    unset INPUT_ALLOW_INSECURE_CONNECTIONS
+    result=$(validate_url; echo "exit:$?")
+    assertContains "should emit error for HTTP with unset flag" "$result" "::error::"
 }
 
 # Test 'set_secrets' function
