@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - 2026-05-26
 
 ### Security
-- For setups connecting to Conjur instance over plain HTTP without `allow_insecure_connections` set to true, the action will fail.
+- [BREAKING] For setups connecting to Conjur instance over plain HTTP without `allow_insecure_connections` set to true, the action will fail.
 
 ### Added
 - Added an new parameter in the action config - `allow_insecure_connections` with default value FALSE
