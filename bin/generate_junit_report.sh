@@ -10,7 +10,7 @@ cat <<EOF
 <testsuite name="BashUnitTests" tests="$(($tests_passed + $tests_failed))" failures="$tests_failed" errors="0" skipped="0">
 EOF
 
-for test in $(echo "$test_output" | grep -oP 'test_\w+'); do
+for test in $(echo "$test_output" | grep -oE 'test_[a-zA-Z0-9_]+'); do
   status="pass"
   
   if echo "$test_output" | grep -q "$test.*FAILED"; then
