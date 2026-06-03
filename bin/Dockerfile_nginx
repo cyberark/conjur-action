@@ -1,6 +1,6 @@
 # kics-scan disable=fd54f200-402c-4333-a5a4-36ef6709af2f
 # Explanation: This container is for local testing only; running as root is acceptable.
-FROM nginx:1.30.0-alpine3.23-slim
+FROM nginx:1.31.1-alpine3.23-slim
 
 RUN apk update && \
     apk add openssl && \
