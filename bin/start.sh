@@ -69,7 +69,7 @@ function setup_conjur_resources {
   docker exec "$(cli_cid)" /bin/sh -c "
     conjur policy load -b root -f $policy_path
     conjur variable set -i github-app/Dev-Team-credential1 -v test_dev_1
-    conjur variable set -i github-app/Dev-Team-credential2 -v test_dev_2
+    conjur variable set -i github-app/Dev-Team-credential2 -v 'test_dev_2\nNEXT_VALUE=nextvalue'
   "
 }
 
@@ -137,7 +137,7 @@ function deploy_conjur_cloud() {
        -X POST -d "$(cat ./policy/root.yml)" "${CONJUR_APPLIANCE_URL}/policies/conjur/policy/data"
 
   set_conjur_cloud_variable "data/github-app/Dev-Team-credential1" "test_dev_1"
-  set_conjur_cloud_variable "data/github-app/Dev-Team-credential2" "test_dev_2"
+  set_conjur_cloud_variable "data/github-app/Dev-Team-credential2" "test_dev_2\nNEXT_VALUE=nextvalue"
 }
 
 function load_container_image_into_act() {
@@ -154,7 +154,7 @@ function load_container_image_into_act() {
   if [ -n "$CONTAINER_IMAGE_TAR" ]; then
     docker cp "$CONTAINER_IMAGE_TAR" act_container:/tmp/
     # docker compose "${compose_args[@]}" exec -T act bash -c "docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR")"
-    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:2.1.1"
+    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:2.2.0"
   fi
 }
 
@@ -174,6 +174,7 @@ function main() {
     export ADMIN_API_KEY=$(rotate_api_key)
     export CONJUR_SSL_CERTIFICATE=$(cat $(bin_dir)/conjur.pem)
     export CONJUR_SECRET="github-app/Dev-Team-credential1"
+    export CONJUR_MULTILINE_SECRET="github-app/Dev-Team-credential2"
 
   elif [[ "$CLOUD" == "true" ]]; then
     #disable the debugging
@@ -185,6 +186,7 @@ function main() {
     export CONJUR_AUTHN_TOKEN_FILE="/conjur-action-git/bin/access_token"
     export CONJUR_SSL_CERTIFICATE=$(cat $(bin_dir)/cloud_ca.pem)
     export CONJUR_SECRET="data/github-app/Dev-Team-credential1"
+    export CONJUR_MULTILINE_SECRET="data/github-app/Dev-Team-credential2"
     export DOCKER_NETWORK='conjur_action'
     make_network $DOCKER_NETWORK
     #upload the policy into cloud tenant pool
@@ -200,6 +202,7 @@ function main() {
     echo "$INFRAPOOL_CONJUR_AUTHN_TOKEN" > "$(bin_dir)/access_token"
     export CONJUR_AUTHN_TOKEN_FILE="/conjur-action-git/bin/access_token"
     export CONJUR_SECRET="data/github-app/Dev-Team-credential1"
+    export CONJUR_MULTILINE_SECRET="data/github-app/Dev-Team-credential2"
     export DOCKER_NETWORK='conjur_action'
     make_network $DOCKER_NETWORK
     openssl s_client -connect localhost:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > "$(bin_dir)/conjur.pem"
@@ -219,15 +222,18 @@ function main() {
     export CONJUR_SSL_CERTIFICATE=$(cat $(bin_dir)/conjur.pem)
     export ADMIN_API_KEY=$ADMIN_API_KEY
     export CONJUR_SECRET="github-app/Dev-Team-credential1"
+    export CONJUR_MULTILINE_SECRET="github-app/Dev-Team-credential2"
   fi
 
-   cat <<EOF > $(git rev-parse --show-toplevel)/.github/workflows/.secrets
+  mkdir -p "$(git rev-parse --show-toplevel)/.github/workflows"
+  cat <<EOF > $(git rev-parse --show-toplevel)/.github/workflows/.secrets
 URL="$CONJUR_APPLIANCE_URL"
 ACCOUNT="$CONJUR_ACCOUNT"
 HOST_ID="$CONJUR_AUTHN_LOGIN"
 API_KEY="$ADMIN_API_KEY"
 AUTHN_TOKEN_FILE="$CONJUR_AUTHN_TOKEN_FILE"
 SECRET="$CONJUR_SECRET"
+MULTILINE_SECRET="$CONJUR_MULTILINE_SECRET"
 SECRET_VALUE="test_dev_1"
 CERTIFICATE="$CONJUR_SSL_CERTIFICATE"
 EOF

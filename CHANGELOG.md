@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-05-19
+
+### Fixed
+- Fixed we now block environment variables with names containing '\n', '<<' or '='.
+- Fixed multiline secret handling - now using GitHub's random-delimiter heredoc form.
+- Fixed masking of multiline secrets.
+- Changed package versions are now pinned.
+
 ## [2.1.1] - 2026-03-23
 
 ### Fixed

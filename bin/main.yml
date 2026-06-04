@@ -22,15 +22,29 @@ jobs:
           host_id: ${{ secrets.HOST_ID }}
           api_key: ${{ secrets.API_KEY }}
           authn_token_file: ${{ secrets.AUTHN_TOKEN_FILE }}
-          secrets: ${{ secrets.SECRET }}|dev_password
+          secrets: ${{ secrets.SECRET }}|dev_password;${{ secrets.MULTILINE_SECRET }}|dev_multiline
           certificate: ${{ secrets.CERTIFICATE }}
-
+      - name: Assert no env-var leaking
+        run: |
+          if env | grep -q '^NEXT_VALUE='; then
+            echo "::error::SECURITY REGRESSION: env leak not blocked"
+            exit 1
+          fi
+          echo "PASS: no injected variables found."
       - name: Validate The Retrieved Secret
         run: |
           if [ "$DEV_PASSWORD" == "test_dev_1" ]; then
             echo "DEV_PASSWORD is correct."
           else
             echo "Error: DEV_PASSWORD is incorrect or not set properly."
+            exit 1
+          fi
+      - name: Validate The Retrieved Secret
+        run: |
+          if [ "$DEV_MULTILINE" == "test_dev_2\nNEXT_VALUE=nextvalue" ]; then
+            echo "DEV_MULTILINE is correct."
+          else
+            echo "Error: DEV_MULTILINE is incorrect or not set properly."
             exit 1
           fi
 
