@@ -210,45 +210,68 @@ array_secrets() {
 }
 
 set_secrets() {
-  if [[ ${SECRETS[@]} ]]; then
-    telemetry_header
-    for secret in "${SECRETS[@]}"; do
-        local IFS='|'
-        read -ra METADATA <<< "$secret" # [0]=db/sqlusername [1]=sql_username
+    if [[ ${SECRETS[@]} ]]; then
+        telemetry_header
+        for secret in "${SECRETS[@]}"; do
+            local IFS='|'
+            read -ra METADATA <<< "$secret" # [0]=db/sqlusername [1]=sql_username
 
-        if [[ "${#METADATA[@]}" == 2 ]]; then
-            secretId=$(urlencode "${METADATA[0]}")
-            envVar=${METADATA[1]^^}
-        else
-            secretId=${METADATA[0]}
-            local IFS='/'
-            read -ra SPLITSECRET <<< "$secretId" # [0]=db [1]=sql_password
-            arrLength=${#SPLITSECRET[@]} # Get array length
-            lastIndex=$((arrLength-1)) # Subtract one for last index
-            envVar=${SPLITSECRET[$lastIndex]^^}
-            secretId=$(urlencode "${METADATA[0]}")
-        fi
+            if [[ "${#METADATA[@]}" == 2 ]]; then
+                secretId=$(urlencode "${METADATA[0]}")
+                envVar=${METADATA[1]^^}
+            else
+                secretId=${METADATA[0]}
+                local IFS='/'
+                read -ra SPLITSECRET <<< "$secretId" # [0]=db [1]=sql_password
+                arrLength=${#SPLITSECRET[@]} # Get array length
+                lastIndex=$((arrLength-1)) # Subtract one for last index
+                envVar=${SPLITSECRET[$lastIndex]^^}
+                secretId=$(urlencode "${METADATA[0]}")
+            fi
 
-        debug_cert_mode "Retrieving secret"
-        conjur_curl -H "Authorization: Token token=\"$token\"" \
-                --header "x-cybr-telemetry: $encoded" \
-                "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId" || {
-            local rc=$?
-            echo "::error::Secret retrieval request failed (curl exit $rc)"
-            exit 1
-        }
-        secretVal=$http_body
+            debug_cert_mode "Retrieving secret"
+            conjur_curl -H "Authorization: Token token=\"$token\"" \
+                    --header "x-cybr-telemetry: $encoded" \
+                    "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId" || {
+                local rc=$?
+                echo "::error::Secret retrieval request failed (curl exit $rc)"
+                exit 1
+            }
+            secretVal=$http_body
+            if [[ "$http_status" != "200" ]]; then
+                echo "::error::Failed to retrieve secret '$secretId' (HTTP $http_status)."
+                exit 1
+            fi
 
-        if [[ "$http_status" != "200" ]]; then
-            echo "::error::Failed to retrieve secret '$secretId' (HTTP $http_status)."
-            exit 1
-        fi
-        echo ::add-mask::"${secretVal}" # Masks the value in all logs & output
-        echo "${envVar}=${secretVal}" >> "${GITHUB_ENV}" # Set environment variable
-    done
-  else
-   echo "::error::No secret found for retrieval from Conjur Vault"
-  fi
+            if [[ "${secretVal}" == "Malformed authorization token" ]]; then
+                echo "::error::Malformed authorization token. Please check your Conjur account, username, and API key. If using authn-jwt, check your Host ID annotations are correct."
+                exit 1
+            elif [[ "${secretVal}" == *"is empty or not found"* ]]; then
+                echo "::error::${secretVal}"
+                exit 1
+            fi
+            if [[ "${envVar}" =~ $'\n' || "${envVar}" == *"<<"* || "${envVar}" == *"="* || -z "${envVar}" ]]; then                                                                                    
+                echo "::error::Invalid environment variable name '${envVar}'; refusing to write."                                                                             
+                exit 1                                                                                                                                                        
+            fi
+            local _delim="EOF_$RANDOM$RANDOM$RANDOM"
+            if [[ "${secretVal}" == *"${_delim}"* ]]; then
+                echo "::error::Secret value contains env delimiter; refusing to write."
+                exit 1
+            fi
+            
+            while IFS= read -r _maskLine; do
+                [[ -n "${_maskLine}" ]] && echo "::add-mask::${_maskLine}"
+            done <<< "${secretVal}"     
+            {
+                echo "${envVar}<<${_delim}"
+                echo "${secretVal}"
+                echo "${_delim}"
+            } >> "${GITHUB_ENV}"
+        done
+    else
+        echo "::error::No secret found for retrieval from Conjur Vault"
+    fi
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
