@@ -368,11 +368,12 @@ test_set_secrets() {
 test_set_secrets_newline() {
     > "${GITHUB_ENV}"
     curl() {
-        if [[ "$*" == *"authenticate"* ]]; then echo "dummy-token"
-        else printf 'benign\nNEXT_VALUE=value1'
+        if [[ "$*" == *"authenticate"* ]]; then printf 'dummy-token\n200'
+        else printf 'benign\nNEXT_VALUE=value1\n200'
         fi
     }
-    SECRETS="ci/lowpriv|LOWPRIV"
+    INPUT_SECRETS="ci/lowpriv|LOWPRIV"
+    array_secrets
     set_secrets
     local content
     content=$(cat "${GITHUB_ENV}")
@@ -406,8 +407,8 @@ test_set_secrets_windows_style_envvar() {
 test_set_secrets_multiline_mask() {
     > "${GITHUB_ENV}"
     curl() {
-        if [[ "$*" == *"authenticate"* ]]; then echo "dummy-token"
-        else printf 'line1\nline2'
+        if [[ "$*" == *"authenticate"* ]]; then printf 'dummy-token\n200'
+        else printf 'line1\nline2\n200'
         fi
     }
     SECRETS="ci/multiline|MULTI_SECRET"
