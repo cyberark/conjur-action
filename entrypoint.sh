@@ -56,13 +56,14 @@ urlencode() {
 
 create_pem() {
     # Create conjur_account.pem for valid SSL
-    echo "$INPUT_CERTIFICATE" > /conjur-action/conjur_"$INPUT_ACCOUNT".pem
+    mkdir -p /tmp/conjur-action
+    echo "$INPUT_CERTIFICATE" > /tmp/conjur-action/conjur_"$INPUT_ACCOUNT".pem
 }
 
 conjur_curl() {
     local cert_args=()
     if [[ -n "$INPUT_CERTIFICATE" ]]; then
-        cert_args=(--cacert "/conjur-action/conjur_$INPUT_ACCOUNT.pem")
+        cert_args=(--cacert "/tmp/conjur-action/conjur_$INPUT_ACCOUNT.pem")
     fi
 
     # Enforce HTTPS unless the caller has explicitly opted into HTTP via
@@ -179,7 +180,6 @@ conjur_authn() {
             exit 1
         fi
         token=$http_body
-
 	else
         echo "::debug Authenticate using Host ID & API Key"
 
