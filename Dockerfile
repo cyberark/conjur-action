@@ -6,7 +6,7 @@ RUN apk add --no-cache \
 	bash=5.3.3-r1 \
 	curl=8.19.0-r0 \
 	jq=1.8.1-r0 \
-	openssl=3.5.6-r0 \
+	openssl=3.5.7-r0 \
 	zlib=1.3.2-r0
 
 COPY --chown=1001:0 entrypoint.sh /conjur-action/entrypoint.sh

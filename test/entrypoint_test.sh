@@ -81,7 +81,7 @@ test_urlencode_special_characters() {
 # Test 'create_pem' function
 test_create_pem() {
     create_pem
-    result=$(cat conjur_test_account.pem)
+    result=$(cat /tmp/conjur-action/conjur_test_account.pem)
     assertEquals "test_certificate" "$result"
 }
 
