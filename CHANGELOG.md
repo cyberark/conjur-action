@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - We now block http requests when `allow_insecure_connections` is FALSE. When `allow_insecure_connections` we print a warrning.
 
+## [2.2.2] - 2026-06-15
+
+### Fixed
+- action.yml uses the correct version
+
 ## [2.2.1] - 2026-06-15
 
 ### Fixed
