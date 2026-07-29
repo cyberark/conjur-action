@@ -26,6 +26,7 @@ setUp() {
     INPUT_API_KEY="api_key"
     INPUT_SECRETS="db/sqlusername|sql_username;db/sqlpassword|sql_password"
     GITHUB_ENV="/tmp/github_env"
+    GITHUB_OUTPUT="/tmp/github_output"
     ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
     ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
 
