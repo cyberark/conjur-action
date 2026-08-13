@@ -50,3 +50,75 @@ jobs:
 
       - name: Clean Workspace
         uses: AutoModality/action-clean@v1.1.0
+
+  http-url-blocked:
+    runs-on: ubuntu-latest
+    needs: test-job
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Attempt connection over HTTP without insecure flag (should fail)
+        id: http_blocked
+        uses: ./
+        with:
+          url: ${{ secrets.CONJUR_HTTP_URL }}
+          account: ${{ secrets.ACCOUNT }}
+          host_id: ${{ secrets.HOST_ID }}
+          api_key: ${{ secrets.API_KEY }}
+          secrets: ${{ secrets.SECRET }}|dev_password
+        continue-on-error: true
+      - name: Verify HTTP connection was blocked by URL validation
+        run: |
+          if [ "${{ steps.http_blocked.outcome }}" != "failure" ]; then
+            echo "Expected action to fail for HTTP URL but it did not"
+            exit 1
+          fi
+          echo "Action correctly rejected the HTTP URL (allow_insecure_connections not set)"
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@v1.1.0
+
+  http-url-allowed-with-warning:
+    runs-on: ubuntu-latest
+    needs: http-url-blocked
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Attempt connection over HTTP with insecure flag (should warn and succeed)
+        id: http_allowed
+        uses: ./
+        with:
+          url: ${{ secrets.CONJUR_HTTP_URL }}
+          account: ${{ secrets.ACCOUNT }}
+          host_id: ${{ secrets.HOST_ID }}
+          api_key: ${{ secrets.API_KEY }}
+          secrets: ${{ secrets.SECRET }}|dev_password
+          allow_insecure_connections: 'true'
+          certificate: ${{ secrets.CERTIFICATE }}
+        continue-on-error: true
+
+      - name: Verify connection result
+        run: |
+          # Whether the step succeeds or fails downstream depends on whether
+          # this environment's HTTP endpoint is a real plaintext-HTTP listener (OSS)
+          # or a TLS-terminated one that rejects plaintext requests (Edge/Cloud/
+          # Enterprise) — either way is fine here, since http-url-blocked already
+          # proves URL validation rejects HTTP without the flag; this job only
+          # needs to show the flag doesn't itself cause a false block.
+          if [ "${{ steps.http_allowed.outcome }}" == "success" ]; then
+            if [ "$DEV_PASSWORD" != "test_dev_1" ]; then
+              echo "HTTP connection succeeded but retrieved secret value is incorrect."
+              exit 1
+            fi
+            echo "HTTP connection with insecure flag succeeded end-to-end. DEV_PASSWORD is correct."
+          elif [ "${{ steps.http_allowed.outcome }}" == "failure" ]; then
+            echo "URL validation was bypassed; action failed downstream at the network/auth level (expected in TLS-only environments)."
+          else
+            echo "Unexpected step outcome: ${{ steps.http_allowed.outcome }}"
+            exit 1
+          fi
+
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@v1.1.0

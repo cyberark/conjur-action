@@ -140,6 +140,26 @@ function deploy_conjur_cloud() {
   set_conjur_cloud_variable "data/github-app/Dev-Team-credential2" "test_dev_2\nNEXT_VALUE=nextvalue"
 }
 
+function verify_http_url_validation_bypassed() {
+  local log_file="$1"
+
+  # act's log interleaves all jobs, so scope the search to the
+  # http-url-allowed-with-warning job's section specifically. It's the last
+  # job in main.yml, so once its marker is seen, read to EOF.
+  local job_log
+  job_log=$(awk '/\[conjur-action Test\/http-url-allowed-with-warning\]/{p=1} p' "$log_file")
+
+  if echo "$job_log" | grep -q "HTTP connections are not allowed"; then
+    echo "FAIL: URL validation blocked the HTTP connection despite allow_insecure_connections: 'true'"
+    exit 1
+  fi
+  if ! echo "$job_log" | grep -q "Connecting to Conjur over HTTP is insecure"; then
+    echo "FAIL: expected URL validation warning for bypassed HTTP connection, but it was not found in the act log"
+    exit 1
+  fi
+  echo "PASS: URL validation correctly bypassed HTTP with allow_insecure_connections set"
+}
+
 function load_container_image_into_act() {
   local compose_file="$1"
   local compose_args=()
@@ -154,7 +174,7 @@ function load_container_image_into_act() {
   if [ -n "$CONTAINER_IMAGE_TAR" ]; then
     docker cp "$CONTAINER_IMAGE_TAR" act_container:/tmp/
     # docker compose "${compose_args[@]}" exec -T act bash -c "docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR")"
-    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:2.2.2"
+    docker compose "${compose_args[@]}" exec -T act bash -c "docker tag \$(docker load -i /tmp/$(basename "$CONTAINER_IMAGE_TAR") | grep -o 'Loaded image: .*' | cut -d' ' -f3) cyberark/conjur-action:3.0.0"
   fi
 }
 
@@ -226,8 +246,10 @@ function main() {
   fi
 
   mkdir -p "$(git rev-parse --show-toplevel)/.github/workflows"
+  conjur_http_url="${CONJUR_APPLIANCE_URL/https:\/\//http://}"
   cat <<EOF > $(git rev-parse --show-toplevel)/.github/workflows/.secrets
 URL="$CONJUR_APPLIANCE_URL"
+CONJUR_HTTP_URL="$conjur_http_url"
 ACCOUNT="$CONJUR_ACCOUNT"
 HOST_ID="$CONJUR_AUTHN_LOGIN"
 API_KEY="$ADMIN_API_KEY"
@@ -247,7 +269,9 @@ EOF
     load_container_image_into_act "docker-compose.yml"
     docker compose exec -T act bash -c "cp /conjur-action-git/bin/main.yml /conjur-action-git/.github/workflows"
     echo "---- running github action locally ----"
-    docker compose exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim  --pull=false --secret-file=./.github/workflows/.secrets push"
+    docker compose exec -T act bash -c "act --network $DOCKER_NETWORK -P node:16-buster-slim  --pull=false --secret-file=./.github/workflows/.secrets push" \
+      | tee "$(bin_dir)/tmp/act_run.log"
+    verify_http_url_validation_bypassed "$(bin_dir)/tmp/act_run.log"
   fi
 }
 

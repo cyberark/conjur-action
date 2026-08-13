@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-05-26
+
+### Security
+- [BREAKING] For setups connecting to Conjur instance over plain HTTP without `allow_insecure_connections` set to true, the action will fail.
+
+### Added
+- Added an new parameter in the action config - `allow_insecure_connections` with default value FALSE
+
+### Changed
+- We now block http requests when `allow_insecure_connections` is FALSE. When `allow_insecure_connections` we print a warrning.
+
 ## [2.2.2] - 2026-06-15
 
 ### Fixed
@@ -78,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/cyberark/conjur-action/compare/v2.2.1...HEAD
+[Unreleased]: https://github.com/cyberark/conjur-action/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/cyberark/conjur-action/compare/v3.0.0...v2.1.1
 [2.2.1]: https://github.com/cyberark/conjur-action/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/cyberark/conjur-action/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/cyberark/conjur-action/compare/v2.1.0...v2.1.1

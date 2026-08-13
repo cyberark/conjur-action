@@ -25,12 +25,16 @@ inputs:
     required: true
   certificate:
     description: 'The Self-Signed SSL Certificate for your CyberArk Conjur instance'
+  allow_insecure_connections:
+    description: 'Allow non-HTTPS (HTTP) connections to the Conjur endpoint. Not recommended for production use.'
+    required: false
+    default: 'false'
   audience:
     description: 'Custom "aud" claim value in the JWT'
     required: false
 runs:
   using: 'docker'
-  image: 'docker://cyberark/conjur-action:2.2.2'
+  image: 'docker://cyberark/conjur-action:3.0.0'
   args:
     - ${{ inputs.url }}
     - ${{ inputs.account }}
@@ -40,6 +44,7 @@ runs:
     - ${{ inputs.authn_id }}
     - ${{ inputs.secrets }}
     - ${{ inputs.certificate }}
+    - ${{ inputs.allow_insecure_connections }}
     - ${{ inputs.audience }}
 branding:
   icon: 'lock'

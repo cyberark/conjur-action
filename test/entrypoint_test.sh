@@ -26,6 +26,7 @@ setUp() {
     INPUT_API_KEY="api_key"
     INPUT_SECRETS="db/sqlusername|sql_username;db/sqlpassword|sql_password"
     GITHUB_ENV="/tmp/github_env"
+    GITHUB_OUTPUT="/tmp/github_output"
     ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
     ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
 
@@ -40,9 +41,11 @@ setUp() {
       elif [[ "$*" == *"authenticate"* ]]; then
         [[ -n "${URL_CAPTURE_FILE:-}" ]] && printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
         [[ -n "${AUTHN_URL_FILE:-}" ]] && printf '%s\n' "$*" >> "$AUTHN_URL_FILE"
-        echo "dummy-token"
+        # conjur_curl uses --write-out '\n%{http_code}'; append a 200 status.
+        printf 'dummy-token\n200'
       else
-        echo "fake_secret_value"
+        # conjur_curl uses --write-out '\n%{http_code}'; append a 200 status.
+        printf 'fake_secret_value\n200'
       fi
     }
 }
@@ -316,6 +319,36 @@ test_conjur_authn_api_key_without_certificate() {
   assertNotContains "should not use JWT authn" "$result" "::debug Authenticate via Authn-JWT"
 }
 
+# Test 'validate_url' function
+test_validate_url_https_passes_silently() {
+    INPUT_URL="https://example.com"
+    result=$(validate_url)
+    assertEquals "" "$result"
+}
+
+test_validate_url_http_with_insecure_flag_emits_warning() {
+    INPUT_URL="http://example.com"
+    INPUT_ALLOW_INSECURE_CONNECTIONS="true"
+    result=$(validate_url)
+    assertContains "should emit warning for HTTP with flag" "$result" "::warning::"
+    unset INPUT_ALLOW_INSECURE_CONNECTIONS
+}
+
+test_validate_url_http_without_insecure_flag_exits_with_error() {
+    INPUT_URL="http://example.com"
+    INPUT_ALLOW_INSECURE_CONNECTIONS="false"
+    result=$(validate_url; echo "exit:$?")
+    assertContains "should emit error for HTTP without flag" "$result" "::error::"
+    unset INPUT_ALLOW_INSECURE_CONNECTIONS
+}
+
+test_validate_url_http_with_unset_insecure_flag_exits_with_error() {
+    INPUT_URL="http://example.com"
+    unset INPUT_ALLOW_INSECURE_CONNECTIONS
+    result=$(validate_url; echo "exit:$?")
+    assertContains "should emit error for HTTP with unset flag" "$result" "::error::"
+}
+
 # Test 'set_secrets' function
 test_set_secrets_empty() {
     SECRETS=""
@@ -336,11 +369,12 @@ test_set_secrets() {
 test_set_secrets_newline() {
     > "${GITHUB_ENV}"
     curl() {
-        if [[ "$*" == *"authenticate"* ]]; then echo "dummy-token"
-        else printf 'benign\nNEXT_VALUE=value1'
+        if [[ "$*" == *"authenticate"* ]]; then printf 'dummy-token\n200'
+        else printf 'benign\nNEXT_VALUE=value1\n200'
         fi
     }
-    SECRETS="ci/lowpriv|LOWPRIV"
+    INPUT_SECRETS="ci/lowpriv|LOWPRIV"
+    array_secrets
     set_secrets
     local content
     content=$(cat "${GITHUB_ENV}")
@@ -374,8 +408,8 @@ test_set_secrets_windows_style_envvar() {
 test_set_secrets_multiline_mask() {
     > "${GITHUB_ENV}"
     curl() {
-        if [[ "$*" == *"authenticate"* ]]; then echo "dummy-token"
-        else printf 'line1\nline2'
+        if [[ "$*" == *"authenticate"* ]]; then printf 'dummy-token\n200'
+        else printf 'line1\nline2\n200'
         fi
     }
     SECRETS="ci/multiline|MULTI_SECRET"

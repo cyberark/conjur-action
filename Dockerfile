@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.authors="CyberArk Software Ltd."
 
 RUN apk add --no-cache \
 	bash=5.3.3-r1 \
-	curl=8.19.0-r0 \
+	curl=8.20.0-r0 \
 	jq=1.8.1-r0 \
 	openssl=3.5.7-r0 \
 	zlib=1.3.2-r0

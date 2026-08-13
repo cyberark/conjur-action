@@ -80,6 +80,7 @@ jobs:
           host_id: ${{ secrets.CONJUR_USERNAME }}
           api_key: ${{ secrets.CONJUR_API_KEY }}
           secrets: db/sqlusername|sql_username;db/sql_password
+          allow_insecure_connections: false
       # ...
 ```
 
@@ -95,6 +96,7 @@ jobs:
 
 #### Optional
 
+* `allow_insecure_connections` - allows connecting to Conjur instance endpoint over plain HTTP.
 * `certificate` - if using a self-signed certificate, provide the contents for validated SSL.
 * `authn_token_file` - this is the file path for the Conjur auth token.
 
@@ -125,6 +127,7 @@ jobs:
           account: cyberarkdemo
           authn_id: ${{ secrets.CONJUR_AUTHN_ID }}
           secrets: db/sqlusername|sql_username;db/sql_password
+          allow_insecure_connections: false
       # ...
 ```
 
@@ -139,6 +142,7 @@ jobs:
 
 #### Optional
 
+* `allow_insecure_connections` - allows connecting to Conjur instance endpoint over plain HTTP.
 * `certificate` - if using a self-signed certificate, provide the contents for validated SSL.
 
 #### Not required
@@ -375,6 +379,10 @@ It is recommended to set the URL, Host ID, and API Key values for the Action to 
 ### Masking
 
 The CyberArk Conjur Secret Fetcher GitHub Action utilizes masking prior to setting secret values to the environment.  This prevents output to the console and to logs.
+
+### HTTP/HTPS
+
+Unless `allow_insecure_connections` is set to true, HTTP connections will fail.
 
 ## License
 
