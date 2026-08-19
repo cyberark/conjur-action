@@ -142,10 +142,13 @@ decode_base64url() {
 # it after sourcing so this test targets the real CHANGELOG.md regardless
 # of $0.
 test_telemetry_header_reads_version_from_changelog() {
-  local repo_root decoded
+  local repo_root expected_version decoded
   repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  # Derive the expected version the same way telemetry_header does, so this
+  # test doesn't need updating every time CHANGELOG.md is bumped.
+  expected_version=$(grep -o '\[[0-9]\+\.[0-9]\+\.[0-9]\+\]' "$repo_root/CHANGELOG.md" | head -n 1 | tr -d '[]')
   decoded=$(source ./entrypoint.sh; script_dir="$repo_root"; telemetry_header; decode_base64url "$encoded")
-  assertContains "should embed a real semver from CHANGELOG.md" "$decoded" "iv=3."
+  assertContains "should embed the real semver from CHANGELOG.md" "$decoded" "iv=${expected_version}"
 }
 
 test_telemetry_header_falls_back_without_changelog() {
