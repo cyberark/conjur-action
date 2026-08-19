@@ -28,7 +28,12 @@ setUp() {
     GITHUB_ENV="/tmp/github_env"
     GITHUB_OUTPUT="/tmp/github_output"
     ACTIONS_ID_TOKEN_REQUEST_URL="http://github-dummy"
-    ACTIONS_ID_TOKEN_REQUEST_TOKEN="dummy-token"
+    # Deliberately distinct from the "dummy-token" string returned by the
+    # authenticate branch below - if they matched, any test that calls
+    # conjur_authn and then set_secrets in the same process (not a
+    # subshell) would have set_secrets' curl call collide with the
+    # id-token-request branch, since $token would equal this value too.
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN="gh-oidc-bearer-token"
 
     handle_git_jwt() { echo "::debug No delta between iat [0] and epoch [0]"; }
     telemetry_header() { encoded="dummy-telemetry"; }
@@ -79,6 +84,77 @@ test_urlencode_basic() {
 test_urlencode_special_characters() {
   result=$(urlencode "a+b&c/d?e=f")
   assertContains "special chars should be percent-encoded" "$result" "a%2Bb%26c%2Fd%3Fe%3Df"
+}
+
+# Test the real 'handle_git_jwt' implementation. setUp stubs it out for
+# every other test, and a plain `unset -f` can't get the real one back
+# since setUp's definition replaced it outright rather than shadowing it.
+# Re-sourcing entrypoint.sh fresh inside a subshell gets the real
+# implementation back (scoped to the subshell only) *and*, unlike
+# `eval "$(declare -f ...)"`, preserves correct file:line attribution for
+# coverage tooling, since the code still runs as part of entrypoint.sh
+# rather than as a string re-evaluated at the call site.
+test_handle_git_jwt_no_delta() {
+  local payload jwt
+  payload=$(printf '{"iat":%d}' "$((EPOCHSECONDS - 5))" | base64 | tr -d '=\n')
+  jwt="header.${payload}.sig"
+  result=$(source ./entrypoint.sh; handle_git_jwt "$jwt")
+  assertContains "should report no delta" "$result" "::debug No delta"
+}
+
+test_handle_git_jwt_future_iat_sleeps() {
+  local payload jwt
+  payload=$(printf '{"iat":%d}' "$((EPOCHSECONDS + 3))" | base64 | tr -d '=\n')
+  jwt="header.${payload}.sig"
+  result=$(source ./entrypoint.sh; sleep() { echo "SLEPT:$1"; }; handle_git_jwt "$jwt")
+  assertContains "should report a delta and sleep" "$result" "delta found"
+}
+
+test_handle_git_jwt_malformed_token_exits() {
+  local exit_status
+  # handle_git_jwt calls `exit` (not `return`) on this branch, so it must be
+  # invoked in a subshell - otherwise it would terminate the whole test run.
+  ( source ./entrypoint.sh; handle_git_jwt "not-a-real-jwt" ) >/dev/null 2>&1
+  exit_status=$?
+  assertEquals "should exit 1 on an unparseable payload" "1" "${exit_status}"
+}
+
+# Re-pads a base64url string (no '=' padding) back to standard base64 so
+# `base64 -d` doesn't fail with "truncated input" - telemetry_header strips
+# padding as part of making the value URL-safe.
+decode_base64url() {
+  local b64
+  b64=$(printf '%s' "$1" | tr -- '-_' '+/')
+  case $(( ${#b64} % 4 )) in
+    2) b64="${b64}==" ;;
+    3) b64="${b64}=" ;;
+  esac
+  printf '%s' "$b64" | base64 -d
+}
+
+# Test the real 'telemetry_header' implementation (same rationale as above:
+# re-source fresh inside a subshell instead of eval'ing a captured
+# function body, to keep coverage attribution correct).
+#
+# `script_dir` is derived from $0 in entrypoint.sh, which under `source`
+# (as every test here does) points at this test file, not entrypoint.sh -
+# that only matches production when entrypoint.sh runs directly. Override
+# it after sourcing so this test targets the real CHANGELOG.md regardless
+# of $0.
+test_telemetry_header_reads_version_from_changelog() {
+  local repo_root expected_version decoded
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  # Derive the expected version the same way telemetry_header does, so this
+  # test doesn't need updating every time CHANGELOG.md is bumped.
+  expected_version=$(grep -o '\[[0-9]\+\.[0-9]\+\.[0-9]\+\]' "$repo_root/CHANGELOG.md" | head -n 1 | tr -d '[]')
+  decoded=$(source ./entrypoint.sh; script_dir="$repo_root"; telemetry_header; decode_base64url "$encoded")
+  assertContains "should embed the real semver from CHANGELOG.md" "$decoded" "iv=${expected_version}"
+}
+
+test_telemetry_header_falls_back_without_changelog() {
+  local decoded
+  decoded=$(source ./entrypoint.sh; script_dir="/tmp/nonexistent-dir-$$"; telemetry_header; decode_base64url "$encoded")
+  assertContains "should fall back to the default version" "$decoded" "iv=0.0.0-default"
 }
 
 # Test 'create_pem' function
@@ -416,6 +492,26 @@ test_set_secrets_multiline_mask() {
     result=$(set_secrets)
     assertContains "should mask first line" "${result}" "::add-mask::line1"
     assertContains "should mask second line" "${result}" "::add-mask::line2"
+}
+
+# Test the 'main' dispatch as a whole (individual tests above only exercise
+# its sub-functions directly)
+test_main_uses_conjur_authn_when_no_token_file() {
+    unset INPUT_AUTHN_TOKEN_FILE
+    > "${GITHUB_ENV}"
+    result=$(main 2>&1)
+    assertContains "should authenticate via conjur_authn" "$result" "::debug Authenticate via Authn-JWT"
+    output=$(cat "${GITHUB_ENV}")
+    assertContains "should still retrieve secrets" "$output" "fake_secret_value"
+}
+
+test_main_uses_token_file_when_set() {
+    echo "fake_token_value" > "$INPUT_AUTHN_TOKEN_FILE"
+    > "${GITHUB_ENV}"
+    result=$(main 2>&1)
+    assertNotContains "should skip conjur_authn entirely" "$result" "::debug Authenticate"
+    output=$(cat "${GITHUB_ENV}")
+    assertContains "should still retrieve secrets using the file-based token" "$output" "fake_secret_value"
 }
 
 # Run all tests
