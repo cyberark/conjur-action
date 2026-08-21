@@ -462,13 +462,6 @@ test_set_secrets_without_certificate() {
 
 test_set_secrets_rejects_delimiter_collision() {
     > "${GITHUB_ENV}"
-    # Unsetting RANDOM and reassigning it strips its "special" dynamic
-    # behavior in bash, making $RANDOM deterministic for the rest of this
-    # test - this lets us force the exact delimiter set_secrets will
-    # generate (EOF_$RANDOM$RANDOM$RANDOM -> EOF_424242) without touching
-    # production code.
-    unset RANDOM
-    RANDOM=42
     curl() {
         if [[ "$*" == *"authenticate"* ]]; then printf 'dummy-token\n200'
         else printf 'before EOF_424242 after\n200'
@@ -476,10 +469,16 @@ test_set_secrets_rejects_delimiter_collision() {
     }
     SECRETS="ci/collide|COLLIDE_SECRET"
     local result exit_status
-    result=$(set_secrets 2>&1); exit_status=$?
+    # Unsetting RANDOM and reassigning it strips its "special" dynamic
+    # behavior in bash, making $RANDOM deterministic - this lets us force
+    # the exact delimiter set_secrets will generate
+    # (EOF_$RANDOM$RANDOM$RANDOM -> EOF_424242) without touching production
+    # code. Once stripped, RANDOM can't regain its dynamic behavior even via
+    # another unset, so this runs in a command-substitution subshell to keep
+    # the mutation from leaking into the rest of this test process.
+    result=$(unset RANDOM; RANDOM=42; set_secrets 2>&1); exit_status=$?
     assertEquals "should exit 1 on delimiter collision" "1" "${exit_status}"
     assertContains "should emit collision error" "${result}" "::error::Secret value contains env delimiter"
-    unset RANDOM
 }
 
 test_set_secrets_newline() {
