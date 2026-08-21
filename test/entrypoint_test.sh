@@ -442,6 +442,45 @@ test_set_secrets() {
     assertContains "env file should contain secret value" "$output" "fake_secret_value"
 }
 
+test_set_secrets_no_separator_nested_path() {
+    > "${GITHUB_ENV}"
+    SECRETS="db/nested/sql_password"
+    result=$(set_secrets)
+    output=$(cat "${GITHUB_ENV}")
+    assertContains "env var should be the last path segment, uppercased" "$output" "SQL_PASSWORD<<EOF_"
+    assertContains "secret value should be present" "$output" "fake_secret_value"
+}
+
+test_set_secrets_without_certificate() {
+    > "${GITHUB_ENV}"
+    INPUT_CERTIFICATE=""
+    SECRETS="db/sqlusername|sql_username"
+    result=$(set_secrets)
+    assertContains "should retrieve without certificate" "$result" "::debug Retrieving secret without certificate"
+    INPUT_CERTIFICATE="test_certificate"
+}
+
+test_set_secrets_rejects_delimiter_collision() {
+    > "${GITHUB_ENV}"
+    curl() {
+        if [[ "$*" == *"authenticate"* ]]; then printf 'dummy-token\n200'
+        else printf 'before EOF_424242 after\n200'
+        fi
+    }
+    SECRETS="ci/collide|COLLIDE_SECRET"
+    local result exit_status
+    # Unsetting RANDOM and reassigning it strips its "special" dynamic
+    # behavior in bash, making $RANDOM deterministic - this lets us force
+    # the exact delimiter set_secrets will generate
+    # (EOF_$RANDOM$RANDOM$RANDOM -> EOF_424242) without touching production
+    # code. Once stripped, RANDOM can't regain its dynamic behavior even via
+    # another unset, so this runs in a command-substitution subshell to keep
+    # the mutation from leaking into the rest of this test process.
+    result=$(unset RANDOM; RANDOM=42; set_secrets 2>&1); exit_status=$?
+    assertEquals "should exit 1 on delimiter collision" "1" "${exit_status}"
+    assertContains "should emit collision error" "${result}" "::error::Secret value contains env delimiter"
+}
+
 test_set_secrets_newline() {
     > "${GITHUB_ENV}"
     curl() {
@@ -457,7 +496,9 @@ test_set_secrets_newline() {
     assertContains "env file should use heredoc open" "${content}" "LOWPRIV<<EOF_"
     assertContains "secret body should contain embedded text" "${content}" "NEXT_VALUE=value1"
     # Secret is 2 lines, so heredoc is 4 lines (open + 2 body + close); any extra line means injection escaped
-    assertEquals "env file should have exactly 4 lines" "4" "$(wc -l < "${GITHUB_ENV}")"
+    # `wc -l` pads its count with leading whitespace on BSD/macOS (unlike
+    # GNU coreutils), so strip whitespace before comparing.
+    assertEquals "env file should have exactly 4 lines" "4" "$(wc -l < "${GITHUB_ENV}" | tr -d '[:space:]')"
 }
 
 test_set_secrets_invalid_envvar() {
