@@ -14,5 +14,6 @@ docker run --rm \
   unit-test \
   bash -c "\
     bashcov --root . -- test/entrypoint_test.sh && \
+    bashcov --root . -- test/entrypoint_integration_test.sh && \
     ruby -r '/conjur-action/test/test_helper.rb' && \
     ./bin/generate_junit_report.sh > /conjur-action/coverage/junit.xml"

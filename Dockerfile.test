@@ -5,8 +5,8 @@ ENV COVERAGE=true
 RUN apk add --no-cache bash jq shunit2 && \
     gem install --no-document \
     bashcov \
-    simplecov:0.22.0 \
-    simplecov-cobertura:3.1.0
+    simplecov:1.1.1 \
+    simplecov-cobertura:4.0.0
 
 USER 1001
 WORKDIR /conjur-action
