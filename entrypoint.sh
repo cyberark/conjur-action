@@ -262,7 +262,7 @@ set_secrets() {
             
             while IFS= read -r _maskLine; do
                 [[ -n "${_maskLine}" ]] && echo "::add-mask::${_maskLine}"
-            done <<< "${secretVal}"     
+            done <<< "${secretVal}"
             {
                 echo "${envVar}<<${_delim}"
                 echo "${secretVal}"
