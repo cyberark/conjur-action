@@ -60,6 +60,13 @@ create_pem() {
     echo "$INPUT_CERTIFICATE" > /tmp/conjur-action/conjur_"$INPUT_ACCOUNT".pem
 }
 
+create_client_cert_files() {
+    mkdir -p /tmp/conjur-action
+    printf '%s' "$INPUT_CLIENT_CERT" > /tmp/conjur-action/client.crt
+    printf '%s' "$INPUT_CLIENT_KEY" > /tmp/conjur-action/client.key
+    chmod 600 /tmp/conjur-action/client.key
+}
+
 conjur_curl() {
     local cert_args=()
     if [[ -n "$INPUT_CERTIFICATE" ]]; then
@@ -171,6 +178,46 @@ conjur_authn() {
                 --header "x-cybr-telemetry: $encoded" \
                 --header "Accept-Encoding: base64" \
                 --data-urlencode "jwt=$JWT_TOKEN" || {
+            local rc=$?
+            echo "::error::Conjur authentication request failed (curl exit $rc)"
+            exit 1
+        }
+        if [[ "$http_status" != "200" ]]; then
+            echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
+            exit 1
+        fi
+        token=$http_body
+    elif [[ -n "$INPUT_AUTHN_CERT_ID" ]]; then
+        echo "::debug Authenticate via Authn-Cert"
+
+        if [[ -z "$INPUT_CLIENT_CERT" ]]; then
+            echo "::error::client_cert is required for certificate authentication"
+            exit 1
+        fi
+        if [[ -z "$INPUT_CLIENT_KEY" ]]; then
+            echo "::error::client_key is required for certificate authentication"
+            exit 1
+        fi
+
+        create_client_cert_files
+
+        # host_id is required for request host-mode (default), but optional for
+        # SPIFFE host-mode (self-hosted) where the workload is derived from the
+        # certificate's SPIFFE ID — same optional pattern as authn-jwt.
+        local REST_API_BASE_URI="${INPUT_URL}/authn-cert/${INPUT_AUTHN_CERT_ID}/${INPUT_ACCOUNT}/authenticate"
+        if [[ -n "$INPUT_HOST_ID" ]]; then
+            echo "::debug Authenticate using Host ID"
+            local workloadId
+            workloadId=$(urlencode "$INPUT_HOST_ID")
+            REST_API_BASE_URI="${INPUT_URL}/authn-cert/${INPUT_AUTHN_CERT_ID}/${INPUT_ACCOUNT}/${workloadId}/authenticate"
+        fi
+
+        debug_cert_mode "Authenticating"
+        conjur_curl --request POST "$REST_API_BASE_URI" \
+                --cert "/tmp/conjur-action/client.crt" \
+                --key "/tmp/conjur-action/client.key" \
+                --header "Accept-Encoding: base64" \
+                --header "x-cybr-telemetry: $encoded" || {
             local rc=$?
             echo "::error::Conjur authentication request failed (curl exit $rc)"
             exit 1

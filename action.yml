@@ -32,6 +32,15 @@ inputs:
   audience:
     description: 'Custom "aud" claim value in the JWT'
     required: false
+  authn_cert_id:
+    description: 'The Service ID of the Certificate Authenticator for mTLS-based authentication'
+    required: false
+  client_cert:
+    description: 'The client certificate in PEM format for certificate-based (mTLS) authentication'
+    required: false
+  client_key:
+    description: 'The client private key in PEM format for certificate-based (mTLS) authentication'
+    required: false
 runs:
   using: 'docker'
   image: 'docker://cyberark/conjur-action:3.0.0'
@@ -46,6 +55,9 @@ runs:
     - ${{ inputs.certificate }}
     - ${{ inputs.allow_insecure_connections }}
     - ${{ inputs.audience }}
+    - ${{ inputs.authn_cert_id }}
+    - ${{ inputs.client_cert }}
+    - ${{ inputs.client_key }}
 branding:
   icon: 'lock'
   color: 'blue'

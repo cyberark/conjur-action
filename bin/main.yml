@@ -51,6 +51,48 @@ jobs:
       - name: Clean Workspace
         uses: AutoModality/action-clean@v1.1.0
 
+  authn-cert-edge-job:
+    runs-on: ubuntu-latest
+    needs: test-job
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Fetch secret using certificate authentication (authn-cert)
+        id: authn_cert
+        uses: ./
+        with:
+          url: ${{ secrets.URL }}
+          account: ${{ secrets.ACCOUNT }}
+          authn_cert_id: ${{ secrets.AUTHN_CERT_ID }}
+          host_id: ${{ secrets.AUTHN_CERT_HOST_ID }}
+          client_cert: ${{ secrets.CLIENT_CERT }}
+          client_key: ${{ secrets.CLIENT_KEY }}
+          secrets: ${{ secrets.AUTHN_CERT_SECRET }}|authn_cert_password
+          certificate: ${{ secrets.CERTIFICATE }}
+        continue-on-error: true
+
+      - name: Validate the retrieved authn-cert secret
+        run: |
+          if [ -z "${{ secrets.AUTHN_CERT_ID }}" ]; then
+            echo "AUTHN_CERT_ID not configured — non-Edge run, skipping authn-cert validation."
+            exit 0
+          fi
+          if [ "${{ steps.authn_cert.outcome }}" != "success" ]; then
+            echo "::error::authn-cert action step failed (outcome: ${{ steps.authn_cert.outcome }})"
+            exit 1
+          fi
+          if [ "$AUTHN_CERT_PASSWORD" = "${{ secrets.AUTHN_CERT_SECRET_VALUE }}" ]; then
+            echo "AUTHN_CERT_PASSWORD is correct."
+          else
+            echo "::error::AUTHN_CERT_PASSWORD is incorrect or not set. Got: '$AUTHN_CERT_PASSWORD'"
+            exit 1
+          fi
+
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@v1.1.0
+
   http-url-blocked:
     runs-on: ubuntu-latest
     needs: test-job

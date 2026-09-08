@@ -109,7 +109,7 @@ function deploy_conjur_enterprise {
     # Authenticate the CLI container
     docker exec "$(cli_cid)" /bin/sh -c "
       if [ ! -e /root/conjur-demo.pem ]; then
-        echo y | conjur init -u ${CONJUR_APPLIANCE_URL} -a ${CONJUR_ACCOUNT} --force --self-signed
+        echo y | conjur init self-hosted -u ${CONJUR_APPLIANCE_URL} -a ${CONJUR_ACCOUNT} --force --self-signed
       fi
       conjur login -i admin -p MySecretP@ss1
     "
@@ -178,6 +178,121 @@ function load_container_image_into_act() {
   fi
 }
 
+function setup_edge_authn_cert() {
+  local svc_id="github-cert"
+  local host_id="github-cert-runner"
+  local cloud_url="${INFRAPOOL_CONJUR_APPLIANCE_URL}/api"
+  local cert_dir
+  cert_dir="$(bin_dir)/tmp/authn_cert"
+  mkdir -p "$cert_dir"
+
+  echo "---- generating authn-cert client certificates ----"
+  openssl req -x509 -newkey rsa:4096 -sha256 -days 1 -nodes \
+    -keyout "$cert_dir/ca.key" -out "$cert_dir/ca.crt" \
+    -subj "/CN=github-action-cert-ca" 2>/dev/null
+
+  openssl req -newkey rsa:2048 -nodes \
+    -keyout "$cert_dir/client.key" -out "$cert_dir/client.csr" \
+    -subj "/CN=${host_id}" 2>/dev/null
+
+  openssl x509 -req -days 1 -sha256 \
+    -in "$cert_dir/client.csr" \
+    -CA "$cert_dir/ca.crt" -CAkey "$cert_dir/ca.key" -CAcreateserial \
+    -out "$cert_dir/client.crt" 2>/dev/null
+
+  echo "---- loading authn-cert/${svc_id} authenticator policy ----"
+  curl -s -o /dev/null -w "authn-cert policy: HTTP %{http_code}\n" \
+    -H "Authorization: Token token=\"$INFRAPOOL_CONJUR_AUTHN_TOKEN\"" \
+    -X POST \
+    -d "
+- !policy
+  id: ${svc_id}
+  body:
+    - !webservice
+    - !variable ca-cert
+    - !group apps
+    - !permit
+      role: !group apps
+      privilege: [read, authenticate]
+      resource: !webservice
+" \
+    "${cloud_url}/policies/conjur/policy/conjur%2Fauthn-cert"
+
+  echo "---- loading github-cert-apps workload policy ----"
+  curl -s -o /dev/null -w "workload policy: HTTP %{http_code}\n" \
+    -H "Authorization: Token token=\"$INFRAPOOL_CONJUR_AUTHN_TOKEN\"" \
+    -X POST \
+    -d "
+- !policy
+  id: github-cert-apps
+  body:
+    - !group
+
+    - !host
+      id: ${host_id}
+      annotations:
+        authn-cert/${svc_id}/cn: ${host_id}
+
+    - !variable authn-cert-credential
+
+    - !grant
+      role: !group
+      member: !host ${host_id}
+
+    - !permit
+      role: !group
+      privilege: [read, execute]
+      resource: !variable authn-cert-credential
+" \
+    "${cloud_url}/policies/conjur/policy/data"
+
+  echo "---- granting workload group access to authenticator ----"
+  curl -s -o /dev/null -w "grant policy: HTTP %{http_code}\n" \
+    -H "Authorization: Token token=\"$INFRAPOOL_CONJUR_AUTHN_TOKEN\"" \
+    -X POST \
+    -d "
+- !grant
+  role: !group apps
+  member: !group /data/github-cert-apps
+" \
+    "${cloud_url}/policies/conjur/policy/conjur%2Fauthn-cert%2F${svc_id}"
+
+  echo "---- setting CA cert variable ----"
+  local encoded_ca_path
+  encoded_ca_path=$(url_encode "conjur/authn-cert/${svc_id}/ca-cert")
+  curl -s -o /dev/null -w "ca-cert variable: HTTP %{http_code}\n" \
+    -H "Authorization: Token token=\"$INFRAPOOL_CONJUR_AUTHN_TOKEN\"" \
+    -X POST --data-urlencode "@${cert_dir}/ca.crt" \
+    "${cloud_url}/secrets/conjur/variable/${encoded_ca_path}"
+
+  echo "---- setting authn-cert test secret ----"
+  local encoded_secret_path
+  encoded_secret_path=$(url_encode "data/github-cert-apps/authn-cert-credential")
+  curl -s -o /dev/null -w "test secret: HTTP %{http_code}\n" \
+    -H "Authorization: Token token=\"$INFRAPOOL_CONJUR_AUTHN_TOKEN\"" \
+    -X POST --data-urlencode "test_cert_auth_value" \
+    "${cloud_url}/secrets/conjur/variable/${encoded_secret_path}"
+
+  echo "---- enabling authn-cert/${svc_id} ----"
+  curl -s -o /dev/null -w "enable authenticator: HTTP %{http_code}\n" \
+    -H "Authorization: Token token=\"$INFRAPOOL_CONJUR_AUTHN_TOKEN\"" \
+    -X PATCH -H "Content-Type: application/x-www-form-urlencoded" \
+    --data "enabled=true" \
+    "${cloud_url}/authn-cert/${svc_id}/conjur"
+
+  echo "---- waiting for Edge to sync authn-cert/${svc_id} ----"
+  sleep 70
+
+  export AUTHN_CERT_ID="${svc_id}"
+  export AUTHN_CERT_HOST_ID="host/data/github-cert-apps/${host_id}"
+  export CLIENT_CERT
+  CLIENT_CERT="$(cat "$cert_dir/client.crt")"
+  export CLIENT_KEY
+  CLIENT_KEY="$(cat "$cert_dir/client.key")"
+  export CONJUR_AUTHN_CERT_SECRET="data/github-cert-apps/authn-cert-credential"
+  export AUTHN_CERT_SECRET_VALUE="test_cert_auth_value"
+}
+
 function main() {
   # remove previous environment
   clean
@@ -229,6 +344,8 @@ function main() {
     export CONJUR_SSL_CERTIFICATE=$(cat $(bin_dir)/conjur.pem)
     # Adding edge to the docker network
     docker network inspect $DOCKER_NETWORK --format '{{json .Containers}}' | grep -q 'edge-test' || docker network connect $DOCKER_NETWORK edge-test
+    # Set up authn-cert authenticator, workload and certificates for E2E tests
+    setup_edge_authn_cert
     #Enable the debugging
     set -x
   else
@@ -258,6 +375,12 @@ SECRET="$CONJUR_SECRET"
 MULTILINE_SECRET="$CONJUR_MULTILINE_SECRET"
 SECRET_VALUE="test_dev_1"
 CERTIFICATE="$CONJUR_SSL_CERTIFICATE"
+AUTHN_CERT_ID="$AUTHN_CERT_ID"
+AUTHN_CERT_HOST_ID="$AUTHN_CERT_HOST_ID"
+CLIENT_CERT="$CLIENT_CERT"
+CLIENT_KEY="$CLIENT_KEY"
+AUTHN_CERT_SECRET="$CONJUR_AUTHN_CERT_SECRET"
+AUTHN_CERT_SECRET_VALUE="$AUTHN_CERT_SECRET_VALUE"
 EOF
   if [[ "$ENTERPRISE" == "true" ]]; then
     docker compose -f docker-compose.enterpise.yml up -d --build act
