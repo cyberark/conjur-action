@@ -375,6 +375,140 @@ test_conjur_authn_jwt_with_audience_and_host_id() {
   unset INPUT_HOST_ID INPUT_AUDIENCE TOKEN_URL_FILE AUTHN_URL_FILE
 }
 
+# Test 'conjur_authn' function for authn-cert
+test_conjur_authn_cert_basic() {
+    export INPUT_AUTHN_ID=""
+    export INPUT_AUTHN_CERT_ID="acme-vm"
+    export INPUT_CLIENT_CERT="fakecert"
+    export INPUT_CLIENT_KEY="fakekey"
+
+    result=$(conjur_authn)
+
+    assertContains "should use cert authn" "$result" "::debug Authenticate via Authn-Cert"
+    assertNotContains "should not use JWT authn" "$result" "::debug Authenticate via Authn-JWT"
+    assertNotContains "should not use API key authn" "$result" "::debug Authenticate using Host ID & API Key"
+
+    unset INPUT_AUTHN_CERT_ID INPUT_CLIENT_CERT INPUT_CLIENT_KEY
+}
+
+test_conjur_authn_cert_url_construction() {
+    export INPUT_AUTHN_ID=""
+    export INPUT_AUTHN_CERT_ID="acme-vm"
+    export INPUT_CLIENT_CERT="fakecert"
+    export INPUT_CLIENT_KEY="fakekey"
+    export INPUT_CERTIFICATE=""
+
+    local authn_url_file
+    authn_url_file=$(mktemp)
+    export AUTHN_URL_FILE="$authn_url_file"
+
+    conjur_authn
+
+    local captured
+    captured=$(cat "$authn_url_file")
+    assertContains "URL should use authn-cert path with encoded host ID" "$captured" \
+        "authn-cert/acme-vm/test_account/host%2Fmy-app/authenticate"
+
+    rm -f "$authn_url_file"
+    unset INPUT_AUTHN_CERT_ID INPUT_CLIENT_CERT INPUT_CLIENT_KEY AUTHN_URL_FILE
+}
+
+test_conjur_authn_cert_with_server_certificate() {
+    export INPUT_AUTHN_ID=""
+    export INPUT_AUTHN_CERT_ID="acme-vm"
+    export INPUT_CLIENT_CERT="fakecert"
+    export INPUT_CLIENT_KEY="fakekey"
+
+    result=$(conjur_authn)
+
+    assertContains "should use cert authn" "$result" "::debug Authenticate via Authn-Cert"
+    assertContains "should report server certificate in use" "$result" "::debug Authenticating with certificate"
+
+    unset INPUT_AUTHN_CERT_ID INPUT_CLIENT_CERT INPUT_CLIENT_KEY
+}
+
+test_conjur_authn_cert_without_server_certificate() {
+    export INPUT_AUTHN_ID=""
+    export INPUT_AUTHN_CERT_ID="acme-vm"
+    export INPUT_CLIENT_CERT="fakecert"
+    export INPUT_CLIENT_KEY="fakekey"
+    export INPUT_CERTIFICATE=""
+
+    result=$(conjur_authn)
+
+    assertContains "should use cert authn" "$result" "::debug Authenticate via Authn-Cert"
+    assertContains "should report no server certificate" "$result" "::debug Authenticating without certificate"
+
+    unset INPUT_AUTHN_CERT_ID INPUT_CLIENT_CERT INPUT_CLIENT_KEY
+}
+
+test_conjur_authn_cert_without_host_id_uses_spiffe_url() {
+    # SPIFFE host-mode (self-hosted): host_id is optional — URL must NOT include
+    # the workload segment when host_id is absent.
+    export INPUT_AUTHN_ID=""
+    export INPUT_AUTHN_CERT_ID="acme-vm"
+    export INPUT_CLIENT_CERT="fakecert"
+    export INPUT_CLIENT_KEY="fakekey"
+    export INPUT_CERTIFICATE=""
+    local saved_host_id="$INPUT_HOST_ID"
+    unset INPUT_HOST_ID
+
+    local authn_url_file
+    authn_url_file=$(mktemp)
+    export AUTHN_URL_FILE="$authn_url_file"
+
+    local result exit_status
+    result=$(conjur_authn 2>&1)
+    exit_status=$?
+
+    assertEquals "should exit 0 in SPIFFE mode (no host_id)" "0" "${exit_status}"
+    assertContains "should use cert authn" "$result" "::debug Authenticate via Authn-Cert"
+    assertNotContains "should not log host ID step" "$result" "::debug Authenticate using Host ID"
+
+    local captured
+    captured=$(cat "$authn_url_file")
+    assertContains "URL should NOT contain workload segment" "$captured" \
+        "authn-cert/acme-vm/test_account/authenticate"
+    assertNotContains "URL should not have workload path" "$captured" \
+        "test_account/host"
+
+    rm -f "$authn_url_file"
+    export INPUT_HOST_ID="$saved_host_id"
+    unset INPUT_AUTHN_CERT_ID INPUT_CLIENT_CERT INPUT_CLIENT_KEY AUTHN_URL_FILE
+}
+
+test_conjur_authn_cert_without_client_cert_exits() {
+    export INPUT_AUTHN_ID=""
+    export INPUT_AUTHN_CERT_ID="acme-vm"
+    export INPUT_CLIENT_CERT=""
+    export INPUT_CLIENT_KEY="fakekey"
+
+    local result exit_status
+    result=$(conjur_authn 2>&1)
+    exit_status=$?
+
+    assertEquals "should exit 1 when client_cert is missing" "1" "${exit_status}"
+    assertContains "should emit error for missing client_cert" "${result}" "::error::"
+
+    unset INPUT_AUTHN_CERT_ID INPUT_CLIENT_CERT INPUT_CLIENT_KEY
+}
+
+test_conjur_authn_cert_without_client_key_exits() {
+    export INPUT_AUTHN_ID=""
+    export INPUT_AUTHN_CERT_ID="acme-vm"
+    export INPUT_CLIENT_CERT="fakecert"
+    export INPUT_CLIENT_KEY=""
+
+    local result exit_status
+    result=$(conjur_authn 2>&1)
+    exit_status=$?
+
+    assertEquals "should exit 1 when client_key is missing" "1" "${exit_status}"
+    assertContains "should emit error for missing client_key" "${result}" "::error::"
+
+    unset INPUT_AUTHN_CERT_ID INPUT_CLIENT_CERT INPUT_CLIENT_KEY
+}
+
 # Test 'conjur_authn' function for api_key
 test_conjur_authn_api_key() {
   INPUT_AUTHN_ID=""
