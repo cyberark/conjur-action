@@ -3,6 +3,16 @@
 
 script_dir=$(dirname "$(realpath "$0")")
 
+# Secure temp directory — created on first use, cleaned on EXIT.
+CONJUR_TMP_DIR=""
+
+_conjur_init_tmp() {
+    if [[ -z "$CONJUR_TMP_DIR" ]]; then
+        CONJUR_TMP_DIR=$(mktemp -d)
+        trap "rm -rf -- '$CONJUR_TMP_DIR'" EXIT
+    fi
+}
+
 validate_url() {
     if [[ "$INPUT_URL" == http://* ]]; then
         if [[ "${INPUT_ALLOW_INSECURE_CONNECTIONS,,}" == "true" ]]; then
@@ -55,22 +65,29 @@ urlencode() {
 }
 
 create_pem() {
-    # Create conjur_account.pem for valid SSL
-    mkdir -p /tmp/conjur-action
-    echo "$INPUT_CERTIFICATE" > /tmp/conjur-action/conjur_"$INPUT_ACCOUNT".pem
+    # Write the CA cert under a private, process-owned temp dir (mktemp -d creates 0700)
+    _conjur_init_tmp
+    local old_umask
+    old_umask=$(umask)
+    umask 077
+    echo "$INPUT_CERTIFICATE" > "$CONJUR_TMP_DIR/conjur_${INPUT_ACCOUNT}.pem"
+    umask "$old_umask"
 }
 
 create_client_cert_files() {
-    mkdir -p /tmp/conjur-action
-    printf '%s' "$INPUT_CLIENT_CERT" > /tmp/conjur-action/client.crt
-    printf '%s' "$INPUT_CLIENT_KEY" > /tmp/conjur-action/client.key
-    chmod 600 /tmp/conjur-action/client.key
+    _conjur_init_tmp
+    local old_umask
+    old_umask=$(umask)
+    umask 077
+    printf '%s' "$INPUT_CLIENT_CERT" > "$CONJUR_TMP_DIR/client.crt"
+    printf '%s' "$INPUT_CLIENT_KEY" > "$CONJUR_TMP_DIR/client.key"
+    umask "$old_umask"
 }
 
 conjur_curl() {
     local cert_args=()
     if [[ -n "$INPUT_CERTIFICATE" ]]; then
-        cert_args=(--cacert "/tmp/conjur-action/conjur_$INPUT_ACCOUNT.pem")
+        cert_args=(--cacert "$CONJUR_TMP_DIR/conjur_$INPUT_ACCOUNT.pem")
     fi
 
     # Enforce HTTPS unless the caller has explicitly opted into HTTP via
@@ -214,8 +231,8 @@ conjur_authn() {
 
         debug_cert_mode "Authenticating"
         conjur_curl --request POST "$REST_API_BASE_URI" \
-                --cert "/tmp/conjur-action/client.crt" \
-                --key "/tmp/conjur-action/client.key" \
+                --cert "$CONJUR_TMP_DIR/client.crt" \
+                --key "$CONJUR_TMP_DIR/client.key" \
                 --header "Accept-Encoding: base64" \
                 --header "x-cybr-telemetry: $encoded" || {
             local rc=$?

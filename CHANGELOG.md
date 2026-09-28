@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Replaced the fixed `/tmp/conjur-action` path used for TLS certificate material with a process-private directory.
+
 ## [3.0.0] - 2026-05-26
 
 ### Security

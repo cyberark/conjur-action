@@ -17,6 +17,7 @@ setUp() {
     unset -f curl
     alias cat='mock_cat'
 
+    CONJUR_TMP_DIR=""
     INPUT_AUTHN_TOKEN_FILE="fake_token_file"
     INPUT_AUTHN_ID="authn_id"
     INPUT_ACCOUNT="test_account"
@@ -59,6 +60,10 @@ tearDown() {
     IFS=$' \t\n'
     unalias cat 2>/dev/null || true
     unset -f curl handle_git_jwt telemetry_header 2>/dev/null || true
+    if [[ -n "$CONJUR_TMP_DIR" ]]; then
+        rm -rf -- "$CONJUR_TMP_DIR"
+        CONJUR_TMP_DIR=""
+    fi
 }
 
 # Test the 'get_token_from_file' function
@@ -160,7 +165,7 @@ test_telemetry_header_falls_back_without_changelog() {
 # Test 'create_pem' function
 test_create_pem() {
     create_pem
-    result=$(cat /tmp/conjur-action/conjur_test_account.pem)
+    result=$(cat "$CONJUR_TMP_DIR/conjur_test_account.pem")
     assertEquals "test_certificate" "$result"
 }
 
