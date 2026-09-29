@@ -178,7 +178,8 @@ conjur_authn() {
             token_url="${token_url}&audience=$(urlencode "${INPUT_AUDIENCE}")"
         fi
         
-        JWT_TOKEN=$(curl -s -H "Authorization:bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$token_url" | jq -r .value)
+        JWT_TOKEN=$(printf 'header = "Authorization: bearer %s"\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" | \
+            curl -s --config - "$token_url" | jq -r .value)
         handle_git_jwt "$JWT_TOKEN"
 
         REST_API_BASE_URI="${INPUT_URL}/authn-jwt/${INPUT_AUTHN_ID}/${INPUT_ACCOUNT}/authenticate"
@@ -190,11 +191,13 @@ conjur_authn() {
         fi
         
         debug_cert_mode "Authenticating"
+        local _jwt_body
+        _jwt_body="jwt=$(urlencode "$JWT_TOKEN")"
         conjur_curl --request POST "$REST_API_BASE_URI" \
                 --header "Content-Type: application/x-www-form-urlencoded" \
                 --header "x-cybr-telemetry: $encoded" \
                 --header "Accept-Encoding: base64" \
-                --data-urlencode "jwt=$JWT_TOKEN" || {
+                --data-binary @- < <(printf '%s' "$_jwt_body") || {
             local rc=$?
             echo "::error::Conjur authentication request failed (curl exit $rc)"
             exit 1
@@ -203,7 +206,7 @@ conjur_authn() {
             echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
             exit 1
         fi
-        token=$http_body
+        token="${http_body//$'\n'/}"
     elif [[ -n "$INPUT_AUTHN_CERT_ID" ]]; then
         echo "::debug Authenticate via Authn-Cert"
 
@@ -243,7 +246,7 @@ conjur_authn() {
             echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
             exit 1
         fi
-        token=$http_body
+        token="${http_body//$'\n'/}"
 	else
         echo "::debug Authenticate using Host ID & API Key"
 
@@ -251,11 +254,12 @@ conjur_authn() {
         hostId=$(urlencode "$INPUT_HOST_ID")
 
         debug_cert_mode "Authenticating"
-        conjur_curl --request POST --data "$INPUT_API_KEY" \
+        conjur_curl --request POST \
                 "$INPUT_URL/authn/$INPUT_ACCOUNT/$hostId/authenticate" \
                 --header "Content-Type: application/x-www-form-urlencoded" \
                 --header "x-cybr-telemetry: $encoded" \
-                --header "Accept-Encoding: base64" || {
+                --header "Accept-Encoding: base64" \
+                --data-binary @- < <(printf '%s' "$INPUT_API_KEY") || {
             local rc=$?
             echo "::error::Conjur authentication request failed (curl exit $rc)"
             exit 1
@@ -264,7 +268,7 @@ conjur_authn() {
             echo "::error::Conjur authentication failed (HTTP $http_status): $http_body"
             exit 1
         fi
-        token=$http_body
+        token="${http_body//$'\n'/}"
     fi
 }
 
@@ -294,13 +298,17 @@ set_secrets() {
             fi
 
             debug_cert_mode "Retrieving secret"
-            conjur_curl -H "Authorization: Token token=\"$token\"" \
+            local _auth_hdr="${CONJUR_TMP_DIR}/.auth_header"
+            printf 'Authorization: Token token="%s"' "$token" > "$_auth_hdr"
+            conjur_curl --header "@${_auth_hdr}" \
                     --header "x-cybr-telemetry: $encoded" \
                     "$INPUT_URL/secrets/$INPUT_ACCOUNT/variable/$secretId" || {
                 local rc=$?
+                rm -f "$_auth_hdr"
                 echo "::error::Secret retrieval request failed (curl exit $rc)"
                 exit 1
             }
+            rm -f "$_auth_hdr"
             secretVal=$http_body
             if [[ "$http_status" != "200" ]]; then
                 echo "::error::Failed to retrieve secret '$secretId' (HTTP $http_status)."

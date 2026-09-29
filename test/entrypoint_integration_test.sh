@@ -20,7 +20,7 @@ setUp() {
     cat > "$FAKE_BIN_DIR/curl" <<'FAKE_CURL'
 #!/bin/bash
 args="$*"
-if [[ "$args" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+if [[ "$args" == *"$ACTIONS_ID_TOKEN_REQUEST_URL"* ]]; then
     # OIDC token request: return a real, well-formed JWT with an iat safely
     # in the past so handle_git_jwt takes its no-delta branch and returns
     # immediately instead of sleeping.

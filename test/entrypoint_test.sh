@@ -17,7 +17,7 @@ setUp() {
     unset -f curl
     alias cat='mock_cat'
 
-    CONJUR_TMP_DIR=""
+    CONJUR_TMP_DIR=$(mktemp -d)
     INPUT_AUTHN_TOKEN_FILE="fake_token_file"
     INPUT_AUTHN_ID="authn_id"
     INPUT_ACCOUNT="test_account"
@@ -40,16 +40,21 @@ setUp() {
     telemetry_header() { encoded="dummy-telemetry"; }
 
     curl() {
-      if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_TOKEN"* ]]; then
+      # Route by URL, not by credential value, so that moving credentials to
+      # stdin (--config - / --data-binary @-) does not break routing logic.
+      if [[ "$*" == *"$ACTIONS_ID_TOKEN_REQUEST_URL"* ]]; then
         [[ -n "${URL_CAPTURE_FILE:-}" ]] && printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
         [[ -n "${TOKEN_URL_FILE:-}" ]] && printf '%s\n' "$*" >> "$TOKEN_URL_FILE"
+        [[ -n "${ARGV_CAPTURE_FILE:-}" ]] && printf '%s\n' "$*" >> "$ARGV_CAPTURE_FILE"
         echo '{"value":"dummy-jwt-token"}'
       elif [[ "$*" == *"authenticate"* ]]; then
         [[ -n "${URL_CAPTURE_FILE:-}" ]] && printf '%s\n' "$*" >> "$URL_CAPTURE_FILE"
         [[ -n "${AUTHN_URL_FILE:-}" ]] && printf '%s\n' "$*" >> "$AUTHN_URL_FILE"
+        [[ -n "${ARGV_CAPTURE_FILE:-}" ]] && printf '%s\n' "$*" >> "$ARGV_CAPTURE_FILE"
         # conjur_curl uses --write-out '\n%{http_code}'; append a 200 status.
         printf 'dummy-token\n200'
       else
+        [[ -n "${ARGV_CAPTURE_FILE:-}" ]] && printf '%s\n' "$*" >> "$ARGV_CAPTURE_FILE"
         # conjur_curl uses --write-out '\n%{http_code}'; append a 200 status.
         printf 'fake_secret_value\n200'
       fi
@@ -692,6 +697,87 @@ test_main_uses_token_file_when_set() {
     assertNotContains "should skip conjur_authn entirely" "$result" "::debug Authenticate"
     output=$(cat "${GITHUB_ENV}")
     assertContains "should still retrieve secrets using the file-based token" "$output" "fake_secret_value"
+}
+
+# API key must be delivered via --data-binary @- (stdin), never via --data ARG.
+test_api_key_not_exposed_in_curl_argv() {
+    INPUT_AUTHN_ID=""
+    local argv_capture_file
+    argv_capture_file=$(mktemp)
+    export ARGV_CAPTURE_FILE="$argv_capture_file"
+
+    conjur_authn >/dev/null 2>&1
+
+    local captured
+    captured=$(cat "$argv_capture_file")
+    assertNotContains "API key must not appear in curl argv" "$captured" "$INPUT_API_KEY"
+
+    rm -f "$argv_capture_file"
+    unset ARGV_CAPTURE_FILE
+}
+
+# GitHub OIDC bearer token must be delivered via --config - (stdin), never via -H ARG.
+test_oidc_bearer_token_not_exposed_in_curl_argv() {
+    local saved_host_id="$INPUT_HOST_ID"
+    unset INPUT_HOST_ID
+    local argv_capture_file
+    argv_capture_file=$(mktemp)
+    export ARGV_CAPTURE_FILE="$argv_capture_file"
+
+    conjur_authn >/dev/null 2>&1
+
+    local captured
+    captured=$(cat "$argv_capture_file")
+    assertNotContains "OIDC bearer token must not appear in curl argv" \
+        "$captured" "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+
+    rm -f "$argv_capture_file"
+    unset ARGV_CAPTURE_FILE
+    export INPUT_HOST_ID="$saved_host_id"
+}
+
+# JWT returned by the OIDC endpoint must not appear on the Conjur authn-jwt call argv.
+test_jwt_not_exposed_in_curl_argv() {
+    local saved_host_id="$INPUT_HOST_ID"
+    unset INPUT_HOST_ID
+    local argv_capture_file
+    argv_capture_file=$(mktemp)
+    export ARGV_CAPTURE_FILE="$argv_capture_file"
+
+    conjur_authn >/dev/null 2>&1
+
+    local captured
+    captured=$(cat "$argv_capture_file")
+    assertNotContains "JWT must not appear in curl argv (authn-jwt POST body)" \
+        "$captured" "dummy-jwt-token"
+
+    rm -f "$argv_capture_file"
+    unset ARGV_CAPTURE_FILE
+    export INPUT_HOST_ID="$saved_host_id"
+}
+
+# Conjur session token must not appear in curl argv; it is written to a private
+# temp file and passed via --header @file, never via -H ARG.
+test_session_token_not_exposed_in_curl_argv() {
+    > "${GITHUB_ENV}"
+    local argv_capture_file
+    argv_capture_file=$(mktemp)
+    export ARGV_CAPTURE_FILE="$argv_capture_file"
+
+    # Set a recognisable token value then call set_secrets directly.
+    local fixed_token="fixed-session-token-$$"
+    token="$fixed_token"
+    SECRETS="ci/myvar|MY_VAR"
+    array_secrets
+    set_secrets >/dev/null 2>&1
+
+    local captured
+    captured=$(cat "$argv_capture_file")
+    assertNotContains "session token must not appear in curl argv (secret retrieval)" \
+        "$captured" "$fixed_token"
+
+    rm -f "$argv_capture_file"
+    unset ARGV_CAPTURE_FILE token
 }
 
 # Run all tests

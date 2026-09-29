@@ -6,7 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-09-29
+
 ### Security
+- All credentials are now removed from `curl`'s argv and delivered via stdin. The Conjur session token used for secret retrieval is written to a private temporary file (`$CONJUR_TMP_DIR`) and passed with `--header @file`. This eliminates exposure of all credentials in `/proc/<pid>/cmdline` and `ps` output.
 - Replaced the fixed `/tmp/conjur-action` path used for TLS certificate material with a process-private directory.
 
 ## [3.0.0] - 2026-05-26
@@ -92,8 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/cyberark/conjur-action/compare/v3.0.0...HEAD
-[3.0.0]: https://github.com/cyberark/conjur-action/compare/v3.0.0...v2.1.1
+[Unreleased]: https://github.com/cyberark/conjur-action/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/cyberark/conjur-action/compare/v3.0.0...v3.0.1
+[3.0.0]: https://github.com/cyberark/conjur-action/compare/v2.2.2...v3.0.0
 [2.2.1]: https://github.com/cyberark/conjur-action/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/cyberark/conjur-action/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/cyberark/conjur-action/compare/v2.1.0...v2.1.1
